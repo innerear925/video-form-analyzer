@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calisthenics Form Compare</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            padding: 10px; /* Reduced padding for mobile */
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 960px;
+            margin: 10px auto; /* Adjust margin for mobile */
+            background-color: #fff;
+            padding: 15px; /* Reduced padding */
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 20px; /* Reduced margin */
+            font-size: 1.8em; /* Smaller heading for mobile */
+        }
+        h2 {
+            font-size: 1.4em; /* Smaller heading for mobile */
+            color: #444;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .upload-section, .controls, .video-output {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: #fdfdfd;
+        }
+
+        .upload-item {
+            margin-bottom: 15px;
+        }
+        input[type="file"] {
+            margin-top: 5px;
+            display: block;
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box; /* Include padding in width */
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+            color: #555;
+        }
+
+        .video-container {
+            text-align: center;
+        }
+        canvas {
+            border: 2px solid #007bff;
+            display: block;
+            margin: 20px auto;
+            background-color: black;
+            max-width: 100%; /* Make canvas responsive */
+            height: auto; /* Maintain aspect ratio with max-width */
+            border-radius: 4px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Space between control groups */
+        }
+        .controls > div {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap; /* Allow wrapping on small screens */
+            gap: 10px;
+        }
+        .controls label {
+            flex-basis: 100px; /* Give labels a fixed base width */
+            margin-right: 0; /* Remove right margin when wrapping */
+            text-align: left;
+        }
+        .controls input[type="range"] {
+            flex-grow: 1; /* Sliders take remaining space */
+            width: auto; /* Override 100% from general input[type="file"] */
+        }
+        #offsetValue {
+            min-width: 50px; /* Ensure value always has space */
+            text-align: right;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap */
+            justify-content: center;
+            margin-top: 20px;
+            gap: 10px; /* Space between buttons */
+        }
+        .controls button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em; /* Smaller font for mobile */
+            transition: background-color 0.3s ease;
+            flex-grow: 1; /* Allow buttons to grow */
+            min-width: 120px; /* Minimum width for buttons */
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:active {
+            background-color: #004085;
+        }
+
+        #uploadStatus, #status {
+            text-align: center;
+            margin-top: 15px;
+            color: #555;
+            font-size: 0.9em;
+        }
+        #status {
+            min-height: 1.2em; /* Reserve space to prevent layout shift */
+        }
+
+        /* Hidden video elements to load and decode video data */
+        #video1, #video2 { display: none; }
+
+        /* Media queries for smaller screens */
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; }
+            h2 { font-size: 1.2em; }
+            .container { padding: 10px; margin: 5px auto; }
+            .upload-section, .controls, .video-output { padding: 10px; margin-bottom: 15px; }
+            .controls label { flex-basis: auto; width: 100%; margin-bottom: 5px; }
+            .controls > div { flex-direction: column; align-items: flex-start; }
+            .controls input[type="range"] { width: 100%; }
+            .button-group button { min-width: unset; width: 100%; } /* Stack buttons on very small screens */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Calisthenics Form Compare</h1>
+
+        <div class="upload-section">
+            <h2>Upload Videos</h2>
+            <div class="upload-item">
+                <label for="fileInput1">Video 1 (Reference/Your Best Attempt):</label>
+                <input type="file" id="fileInput1" accept="video/*">
+            </div>
+            <div class="upload-item">
+                <label for="fileInput2">Video 2 (Your Current Attempt):</label>
+                <input type="file" id="fileInput2" accept="video/*">
+            </div>
+            <p id="uploadStatus">Please upload two videos to begin.</p>
+        </div>
+
+        <div class="video-output">
+            <h2>Comparison View</h2>
+            <canvas id="videoCanvas" width="640" height="360"></canvas>
+        </div>
+
+        <div class="controls">
+            <h2>Controls</h2>
+            <div>
+                <label for="opacitySlider">Video 2 Opacity:</label>
+                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
+            </div>
+            <div>
+                <label for="offsetSlider">Video 2 Offset:</label>
+                <input type="range" id="offsetSlider" min="-5" max="5" step="0.01" value="0">
+                <span id="offsetValue">0.00s</span>
+            </div>
+            <div class="button-group">
+                <button id="playPauseButton">Play</button>
+                <button id="restartButton">Restart</button>
+                <button id="syncStartButton">Sync Starts</button>
+            </div>
+            <p id="status"></p>
+        </div>
+    </div>
+
+    <!-- Hidden video elements to load and decode video data -->
+    <!-- Added playsinline and webkit-playsinline for iOS compatibility -->
+    <video id="video1" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
+    <video id="video2" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
+
+    <script src="app.js"></script>
+</body>
+</html>
