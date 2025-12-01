@@ -8,7 +8,7 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
             margin: 0;
-            padding: 10px; /* Reduced padding for mobile */
+            padding: 10px;
             background-color: #f0f2f5;
             color: #333;
             line-height: 1.6;
@@ -16,9 +16,9 @@
 
         .container {
             max-width: 960px;
-            margin: 10px auto; /* Adjust margin for mobile */
+            margin: 10px auto;
             background-color: #fff;
-            padding: 15px; /* Reduced padding */
+            padding: 15px;
             border-radius: 8px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
@@ -26,11 +26,11 @@
         h1 {
             text-align: center;
             color: #0056b3;
-            margin-bottom: 20px; /* Reduced margin */
-            font-size: 1.8em; /* Smaller heading for mobile */
+            margin-bottom: 20px;
+            font-size: 1.8em;
         }
         h2 {
-            font-size: 1.4em; /* Smaller heading for mobile */
+            font-size: 1.4em;
             color: #444;
             margin-top: 25px;
             margin-bottom: 15px;
@@ -54,7 +54,7 @@
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            box-sizing: border-box; /* Include padding in width */
+            box-sizing: border-box;
         }
         label {
             font-weight: bold;
@@ -71,42 +71,59 @@
             display: block;
             margin: 20px auto;
             background-color: black;
-            max-width: 100%; /* Make canvas responsive */
-            height: auto; /* Maintain aspect ratio with max-width */
+            max-width: 100%;
+            height: auto;
             border-radius: 4px;
+            /* Needed for touch events to properly target canvas and prevent scroll */
+            touch-action: none; 
         }
 
         .controls {
             display: flex;
             flex-direction: column;
-            gap: 15px; /* Space between control groups */
+            gap: 15px;
         }
-        .controls > div {
+        .control-group {
+            border: 1px solid #e9e9e9;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f5f5f5;
+        }
+        .control-group h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 1.1em;
+        }
+        .control-row {
             display: flex;
             align-items: center;
-            flex-wrap: wrap; /* Allow wrapping on small screens */
+            flex-wrap: wrap;
             gap: 10px;
+            margin-bottom: 5px;
         }
-        .controls label {
-            flex-basis: 100px; /* Give labels a fixed base width */
-            margin-right: 0; /* Remove right margin when wrapping */
+        .control-row label {
+            flex-basis: 90px;
+            margin-right: 0;
             text-align: left;
+            font-weight: normal;
+            font-size: 0.9em;
         }
-        .controls input[type="range"] {
-            flex-grow: 1; /* Sliders take remaining space */
-            width: auto; /* Override 100% from general input[type="file"] */
+        .control-row input[type="range"] {
+            flex-grow: 1;
+            width: auto;
         }
-        #offsetValue {
-            min-width: 50px; /* Ensure value always has space */
+        .control-row span {
+            min-width: 50px;
             text-align: right;
+            font-size: 0.9em;
         }
-
         .button-group {
             display: flex;
-            flex-wrap: wrap; /* Allow buttons to wrap */
+            flex-wrap: wrap;
             justify-content: center;
-            margin-top: 20px;
-            gap: 10px; /* Space between buttons */
+            margin-top: 15px;
+            gap: 10px;
         }
         .controls button {
             padding: 10px 15px;
@@ -115,10 +132,10 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 1em; /* Smaller font for mobile */
+            font-size: 1em;
             transition: background-color 0.3s ease;
-            flex-grow: 1; /* Allow buttons to grow */
-            min-width: 120px; /* Minimum width for buttons */
+            flex-grow: 1;
+            min-width: 100px;
         }
         .controls button:hover {
             background-color: #0056b3;
@@ -126,15 +143,23 @@
         .controls button:active {
             background-color: #004085;
         }
+        .video-player-buttons {
+            display: flex;
+            gap: 5px;
+            flex-grow: 1;
+            justify-content: center;
+        }
+        .video-player-buttons button {
+            flex-grow: 1;
+            min-width: unset;
+        }
 
         #uploadStatus, #status {
             text-align: center;
             margin-top: 15px;
             color: #555;
             font-size: 0.9em;
-        }
-        #status {
-            min-height: 1.2em; /* Reserve space to prevent layout shift */
+            min-height: 1.2em;
         }
 
         /* Hidden video elements to load and decode video data */
@@ -146,10 +171,11 @@
             h2 { font-size: 1.2em; }
             .container { padding: 10px; margin: 5px auto; }
             .upload-section, .controls, .video-output { padding: 10px; margin-bottom: 15px; }
-            .controls label { flex-basis: auto; width: 100%; margin-bottom: 5px; }
-            .controls > div { flex-direction: column; align-items: flex-start; }
-            .controls input[type="range"] { width: 100%; }
-            .button-group button { min-width: unset; width: 100%; } /* Stack buttons on very small screens */
+            .control-row { flex-direction: column; align-items: flex-start; }
+            .control-row label { width: 100%; margin-bottom: 5px; }
+            .control-row input[type="range"] { width: 100%; }
+            .button-group button { min-width: unset; width: 100%; }
+            .video-player-buttons { width: 100%; }
         }
     </style>
 </head>
@@ -176,27 +202,68 @@
         </div>
 
         <div class="controls">
-            <h2>Controls</h2>
-            <div>
-                <label for="opacitySlider">Video 2 Opacity:</label>
-                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
+            <h2>Global Controls</h2>
+            <div class="control-group">
+                <h3>General Settings</h3>
+                <div class="control-row">
+                    <label for="opacitySlider">Video 2 Opacity:</label>
+                    <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
+                    <span></span>
+                </div>
             </div>
-            <div>
-                <label for="offsetSlider">Video 2 Offset:</label>
-                <input type="range" id="offsetSlider" min="-5" max="5" step="0.01" value="0">
-                <span id="offsetValue">0.00s</span>
+
+            <div class="control-group">
+                <h3>Video 1 Controls</h3>
+                <div class="control-row">
+                    <label for="timeSlider1">Current Time:</label>
+                    <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
+                    <span id="timeValue1">0.00s</span>
+                </div>
+                <div class="button-group video-player-buttons">
+                    <button id="playPauseButton1">Play 1</button>
+                    <button id="restartButton1">Restart 1</button>
+                </div>
             </div>
+
+            <div class="control-group">
+                <h3>Video 2 Controls</h3>
+                <div class="control-row">
+                    <label for="timeSlider2">Current Time:</label>
+                    <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
+                    <span id="timeValue2">0.00s</span>
+                </div>
+                <div class="control-row">
+                    <label for="offsetXSlider">Position X:</label>
+                    <input type="range" id="offsetXSlider" min="-100" max="100" step="1" value="0">
+                    <span id="offsetValueX">0px</span>
+                </div>
+                <div class="control-row">
+                    <label for="offsetYSlider">Position Y:</label>
+                    <input type="range" id="offsetYSlider" min="-100" max="100" step="1" value="0">
+                    <span id="offsetValueY">0px</span>
+                </div>
+                <div class="control-row">
+                    <label for="scaleSlider">Scale:</label>
+                    <input type="range" id="scaleSlider" min="0.5" max="2.0" step="0.01" value="1.0">
+                    <span id="scaleValue">1.00x</span>
+                </div>
+                <div class="button-group video-player-buttons">
+                    <button id="playPauseButton2">Play 2</button>
+                    <button id="restartButton2">Restart 2</button>
+                    <button id="resetPositionScaleButton">Reset P&S 2</button>
+                </div>
+            </div>
+
             <div class="button-group">
-                <button id="playPauseButton">Play</button>
-                <button id="restartButton">Restart</button>
-                <button id="syncStartButton">Sync Starts</button>
+                <button id="playAllButton">Play Both</button>
+                <button id="pauseAllButton">Pause All</button>
+                <button id="syncAllStartsButton">Sync All Starts</button>
             </div>
             <p id="status"></p>
         </div>
     </div>
 
     <!-- Hidden video elements to load and decode video data -->
-    <!-- Added playsinline and webkit-playsinline for iOS compatibility -->
     <video id="video1" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
     <video id="video2" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
 
