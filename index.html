@@ -12,6 +12,7 @@
             background-color: #f0f2f5;
             color: #333;
             line-height: 1.6;
+            font-size: 14px; /* Base font size */
         }
 
         .container {
@@ -26,26 +27,26 @@
         h1 {
             text-align: center;
             color: #0056b3;
-            margin-bottom: 20px;
+            margin-bottom: 15px; /* Compacted */
             font-size: 1.8em;
         }
         h2 {
             font-size: 1.4em;
             color: #444;
-            margin-top: 25px;
-            margin-bottom: 15px;
+            margin-top: 20px; /* Compacted */
+            margin-bottom: 10px; /* Compacted */
         }
 
         .upload-section, .controls, .video-output {
-            margin-bottom: 20px;
-            padding: 15px;
+            margin-bottom: 15px; /* Compacted */
+            padding: 12px; /* Compacted */
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             background-color: #fdfdfd;
         }
 
         .upload-item {
-            margin-bottom: 15px;
+            margin-bottom: 10px; /* Compacted */
         }
         input[type="file"] {
             margin-top: 5px;
@@ -58,40 +59,36 @@
         }
         label {
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 3px; /* Compacted */
             display: block;
             color: #555;
         }
 
-        .video-container {
-            text-align: center;
-        }
         canvas {
             border: 2px solid #007bff;
             display: block;
-            margin: 20px auto;
+            margin: 15px auto; /* Compacted */
             background-color: black;
             max-width: 100%;
             height: auto;
             border-radius: 4px;
-            /* Needed for touch events to properly target canvas and prevent scroll */
-            touch-action: none; 
+            touch-action: none;
         }
 
         .controls {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px; /* Compacted */
         }
         .control-group {
             border: 1px solid #e9e9e9;
-            padding: 10px;
+            padding: 8px; /* Compacted */
             border-radius: 4px;
             background-color: #f5f5f5;
         }
         .control-group h3 {
             margin-top: 0;
-            margin-bottom: 10px;
+            margin-bottom: 8px; /* Compacted */
             color: #666;
             font-size: 1.1em;
         }
@@ -99,11 +96,11 @@
             display: flex;
             align-items: center;
             flex-wrap: wrap;
-            gap: 10px;
-            margin-bottom: 5px;
+            gap: 8px; /* Compacted */
+            margin-bottom: 5px; /* Compacted */
         }
         .control-row label {
-            flex-basis: 90px;
+            flex-basis: 70px; /* Compacted */
             margin-right: 0;
             text-align: left;
             font-weight: normal;
@@ -112,9 +109,10 @@
         .control-row input[type="range"] {
             flex-grow: 1;
             width: auto;
+            height: 20px; /* Ensure slider is tall enough */
         }
         .control-row span {
-            min-width: 50px;
+            min-width: 45px; /* Compacted */
             text-align: right;
             font-size: 0.9em;
         }
@@ -122,11 +120,11 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            margin-top: 15px;
-            gap: 10px;
+            margin-top: 10px; /* Compacted */
+            gap: 5px; /* Compacted */
         }
         .controls button {
-            padding: 10px 15px;
+            padding: 8px 12px; /* Compacted */
             background-color: #007bff;
             color: white;
             border: none;
@@ -135,7 +133,9 @@
             font-size: 1em;
             transition: background-color 0.3s ease;
             flex-grow: 1;
-            min-width: 100px;
+            min-width: 40px; /* Smaller min-width for icon buttons */
+            max-width: 80px; /* Max width to keep them square-ish */
+            box-sizing: border-box; /* Crucial for sizing */
         }
         .controls button:hover {
             background-color: #0056b3;
@@ -143,20 +143,10 @@
         .controls button:active {
             background-color: #004085;
         }
-        .video-player-buttons {
-            display: flex;
-            gap: 5px;
-            flex-grow: 1;
-            justify-content: center;
-        }
-        .video-player-buttons button {
-            flex-grow: 1;
-            min-width: unset;
-        }
 
         #uploadStatus, #status {
             text-align: center;
-            margin-top: 15px;
+            margin-top: 10px; /* Compacted */
             color: #555;
             font-size: 0.9em;
             min-height: 1.2em;
@@ -170,12 +160,11 @@
             h1 { font-size: 1.5em; }
             h2 { font-size: 1.2em; }
             .container { padding: 10px; margin: 5px auto; }
-            .upload-section, .controls, .video-output { padding: 10px; margin-bottom: 15px; }
+            .upload-section, .controls, .video-output { padding: 10px; margin-bottom: 10px; }
             .control-row { flex-direction: column; align-items: flex-start; }
             .control-row label { width: 100%; margin-bottom: 5px; }
             .control-row input[type="range"] { width: 100%; }
-            .button-group button { min-width: unset; width: 100%; }
-            .video-player-buttons { width: 100%; }
+            .button-group button { min-width: unset; width: 100%; max-width: unset; } /* Allow full width on very small */
         }
     </style>
 </head>
@@ -186,11 +175,11 @@
         <div class="upload-section">
             <h2>Upload Videos</h2>
             <div class="upload-item">
-                <label for="fileInput1">Video 1 (Reference/Your Best Attempt):</label>
+                <label for="fileInput1">Video 1 (Reference):</label>
                 <input type="file" id="fileInput1" accept="video/*">
             </div>
             <div class="upload-item">
-                <label for="fileInput2">Video 2 (Your Current Attempt):</label>
+                <label for="fileInput2">Video 2 (Your Attempt):</label>
                 <input type="file" id="fileInput2" accept="video/*">
             </div>
             <p id="uploadStatus">Please upload two videos to begin.</p>
@@ -202,9 +191,9 @@
         </div>
 
         <div class="controls">
-            <h2>Global Controls</h2>
+            <h2>Controls</h2>
             <div class="control-group">
-                <h3>General Settings</h3>
+                <h3>Video Overlay</h3>
                 <div class="control-row">
                     <label for="opacitySlider">Video 2 Opacity:</label>
                     <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
@@ -213,51 +202,36 @@
             </div>
 
             <div class="control-group">
-                <h3>Video 1 Controls</h3>
+                <h3>Video 1 Timeline</h3>
                 <div class="control-row">
-                    <label for="timeSlider1">Current Time:</label>
+                    <label for="timeSlider1">Time:</label>
                     <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
                     <span id="timeValue1">0.00s</span>
                 </div>
-                <div class="button-group video-player-buttons">
-                    <button id="playPauseButton1">Play 1</button>
-                    <button id="restartButton1">Restart 1</button>
+                <div class="button-group">
+                    <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶ / ⏸</button>
+                    <button id="restartButton1" aria-label="Restart Video 1">🔄</button>
                 </div>
             </div>
 
             <div class="control-group">
-                <h3>Video 2 Controls</h3>
+                <h3>Video 2 Timeline & Transform (Pinch/Pan on Video)</h3>
                 <div class="control-row">
-                    <label for="timeSlider2">Current Time:</label>
+                    <label for="timeSlider2">Time:</label>
                     <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
                     <span id="timeValue2">0.00s</span>
                 </div>
-                <div class="control-row">
-                    <label for="offsetXSlider">Position X:</label>
-                    <input type="range" id="offsetXSlider" min="-100" max="100" step="1" value="0">
-                    <span id="offsetValueX">0px</span>
-                </div>
-                <div class="control-row">
-                    <label for="offsetYSlider">Position Y:</label>
-                    <input type="range" id="offsetYSlider" min="-100" max="100" step="1" value="0">
-                    <span id="offsetValueY">0px</span>
-                </div>
-                <div class="control-row">
-                    <label for="scaleSlider">Scale:</label>
-                    <input type="range" id="scaleSlider" min="0.5" max="2.0" step="0.01" value="1.0">
-                    <span id="scaleValue">1.00x</span>
-                </div>
-                <div class="button-group video-player-buttons">
-                    <button id="playPauseButton2">Play 2</button>
-                    <button id="restartButton2">Restart 2</button>
-                    <button id="resetPositionScaleButton">Reset P&S 2</button>
+                <div class="button-group">
+                    <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶ / ⏸</button>
+                    <button id="restartButton2" aria-label="Restart Video 2">🔄</button>
+                    <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position and Scale">⛶</button>
                 </div>
             </div>
 
             <div class="button-group">
-                <button id="playAllButton">Play Both</button>
-                <button id="pauseAllButton">Pause All</button>
-                <button id="syncAllStartsButton">Sync All Starts</button>
+                <button id="playAllButton" aria-label="Play Both Videos">▶ ▶</button>
+                <button id="pauseAllButton" aria-label="Pause All Videos">⏸ ⏸</button>
+                <button id="syncAllStartsButton" aria-label="Sync Both Videos to Start">⏮</button>
             </div>
             <p id="status"></p>
         </div>

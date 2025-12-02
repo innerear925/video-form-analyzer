@@ -15,15 +15,9 @@ const restartButton1 = document.getElementById('restartButton1');
 
 const timeSlider2 = document.getElementById('timeSlider2');
 const timeValue2 = document.getElementById('timeValue2');
-const offsetXSlider = document.getElementById('offsetXSlider');
-const offsetValueX = document.getElementById('offsetValueX');
-const offsetYSlider = document.getElementById('offsetYSlider');
-const offsetValueY = document.getElementById('offsetValueY');
-const scaleSlider = document.getElementById('scaleSlider'); // New slider
-const scaleValue = document.getElementById('scaleValue');     // New span
 const playPauseButton2 = document.getElementById('playPauseButton2');
 const restartButton2 = document.getElementById('restartButton2');
-const resetPositionScaleButton = document.getElementById('resetPositionScaleButton'); // New button
+const resetPositionScaleButton = document.getElementById('resetPositionScaleButton');
 
 const playAllButton = document.getElementById('playAllButton');
 const pauseAllButton = document.getElementById('pauseAllButton');
@@ -33,19 +27,24 @@ const uploadStatus = document.getElementById('uploadStatus');
 const statusText = document.getElementById('status');
 
 let animationFrameId = null; // To store the requestAnimationFrame ID
-let videoLoadedCount = 0; // To track when both videos are ready
 
 // --- State Variables for Playback ---
 let isPlaying1 = false;
 let isPlaying2 = false;
 
-// --- Touch Interaction State ---
+// --- Video Readiness State ---
+let video1Ready = false;
+let video2Ready = false;
+
+// --- Touch Interaction State (for Video 2 transform) ---
 let lastDistance = null; // Distance between two fingers for pinch-zoom
-let initialScale = 1.0; // Scale when pinch started
-let initialOffsetX = 0; // Offset when pan started
-let initialOffsetY = 0;
-let lastTouch = { x: 0, y: 0 }; // Last single touch position for pan
+let currentScale = 1.0;
+let currentOffsetX = 0;
+let currentOffsetY = 0;
+
+let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance: 0 };
 let isDragging = false; // Flag for single-finger drag (pan)
+
 
 // --- Event Listeners ---
 
@@ -54,6 +53,7 @@ fileInput1.addEventListener('change', (event) => loadVideo(event, video1, 1));
 fileInput2.addEventListener('change', (event) => loadVideo(event, video2, 2));
 
 // Video ready events
+// 'loadeddata' is generally sufficient for drawing frames.
 video1.addEventListener('loadedmetadata', () => setupVideo(video1, 1));
 video2.addEventListener('loadedmetadata', () => setupVideo(video2, 2));
 
@@ -62,16 +62,11 @@ video1.addEventListener('timeupdate', () => updateTimeSlider(video1, timeSlider1
 video2.addEventListener('timeupdate', () => updateTimeSlider(video2, timeSlider2, timeValue2));
 
 // Video ended events
-video1.addEventListener('ended', () => { isPlaying1 = false; playPauseButton1.textContent = 'Play 1'; });
-video2.addEventListener('ended', () => { isPlaying2 = false; playPauseButton2.textContent = 'Play 2'; });
+video1.addEventListener('ended', () => { isPlaying1 = false; playPauseButton1.textContent = '▶ / ⏸'; });
+video2.addEventListener('ended', () => { isPlaying2 = false; playPauseButton2.textContent = '▶ / ⏸'; });
 
 // Global controls
 opacitySlider.addEventListener('input', drawFrame);
-
-// Position and Scale sliders for Video 2
-offsetXSlider.addEventListener('input', () => { offsetValueX.textContent = offsetXSlider.value + 'px'; drawFrame(); });
-offsetYSlider.addEventListener('input', () => { offsetValueY.textContent = offsetYSlider.value + 'px'; drawFrame(); });
-scaleSlider.addEventListener('input', () => { scaleValue.textContent = parseFloat(scaleSlider.value).toFixed(2) + 'x'; drawFrame(); });
 
 // Individual video controls
 playPauseButton1.addEventListener('click', () => togglePlayPauseIndividual(video1, playPauseButton1, 1));
@@ -112,14 +107,20 @@ function loadVideo(event, videoElement, videoNum) {
         videoElement.load();
         statusText.textContent = `Loading Video ${videoNum}...`;
         uploadStatus.textContent = `Video ${videoNum} loaded.`;
-        videoLoadedCount = 0;
+        
+        // Reset readiness flags for this video
+        if (videoNum === 1) video1Ready = false;
+        else video2Ready = false;
+        
         pauseAllVideos();
         ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
     }
 }
 
 function setupVideo(videoElement, videoNum) {
-    videoLoadedCount++;
+    if (videoNum === 1) video1Ready = true;
+    else video2Ready = true;
+
     statusText.textContent = `Video ${videoNum} metadata loaded.`;
 
     // Initialize timeline slider range
@@ -128,19 +129,18 @@ function setupVideo(videoElement, videoNum) {
     timeSlider.value = 0;
     updateTimeSlider(videoElement, timeSlider, (videoNum === 1) ? timeValue1 : timeValue2);
 
-    if (videoLoadedCount === 2) {
+    if (video1Ready && video2Ready) {
         statusText.textContent = 'Both videos ready! Adjust controls and compare.';
-        adjustCanvasSize(); // Set canvas dimensions and position/scale slider limits
+        adjustCanvasSize(); // Set canvas dimensions
         if (!animationFrameId) { // Start the continuous drawing loop if not already running
             animationFrameId = requestAnimationFrame(drawLoop);
         }
-        // Ensure initial draw
-        drawFrame();
+        drawFrame(); // Initial draw
     }
 }
 
 function adjustCanvasSize() {
-    if (video1.readyState < 1 || video2.readyState < 1 || !video1.videoWidth || !video2.videoWidth) return;
+    if (!video1Ready || !video2Ready || !video1.videoWidth || !video2.videoWidth) return;
 
     const viewportWidth = window.innerWidth;
     const maxDesktopCanvasWidth = 900;
@@ -160,12 +160,6 @@ function adjustCanvasSize() {
     videoCanvas.width = targetWidth;
     videoCanvas.height = targetHeight;
     
-    // Adjust max/min for position sliders based on new canvas size
-    offsetXSlider.max = videoCanvas.width / 2;
-    offsetXSlider.min = -videoCanvas.width / 2;
-    offsetYSlider.max = videoCanvas.height / 2;
-    offsetYSlider.min = -videoCanvas.height / 2;
-
     drawFrame();
 }
 
@@ -175,19 +169,13 @@ function updateTimeSlider(videoElement, slider, valueSpan) {
 }
 
 function scrubVideo(videoElement, slider) {
-    if (!videoElement.paused) {
-        videoElement.pause();
-        const playButton = (videoElement === video1) ? playPauseButton1 : playPauseButton2;
-        playButton.textContent = `Play ${videoElement === video1 ? '1' : '2'}`;
-        if (videoElement === video1) isPlaying1 = false;
-        else isPlaying2 = false;
-    }
     videoElement.currentTime = parseFloat(slider.value);
+    // No need to pause, drawFrame will pick up the new currentTime
     drawFrame();
 }
 
 function togglePlayPauseIndividual(videoElement, playPauseButton, videoNum) {
-    if (videoLoadedCount < 2) {
+    if (!video1Ready || !video2Ready) {
         statusText.textContent = "Please upload both videos first!";
         return;
     }
@@ -197,7 +185,7 @@ function togglePlayPauseIndividual(videoElement, playPauseButton, videoNum) {
         playPromise.then(() => {
             if (videoElement === video1) isPlaying1 = true;
             else isPlaying2 = true;
-            playPauseButton.textContent = `Pause ${videoNum}`;
+            playPauseButton.textContent = '⏸';
             statusText.textContent = `Playing Video ${videoNum}.`;
         }).catch(error => {
             statusText.textContent = `Autoplay prevented for Video ${videoNum}: ${error.message}.`;
@@ -207,7 +195,7 @@ function togglePlayPauseIndividual(videoElement, playPauseButton, videoNum) {
         videoElement.pause();
         if (videoElement === video1) isPlaying1 = false;
         else isPlaying2 = false;
-        playPauseButton.textContent = `Play ${videoNum}`;
+        playPauseButton.textContent = '▶';
         statusText.textContent = `Paused Video ${videoNum}.`;
     }
 }
@@ -217,25 +205,22 @@ function restartVideo(videoElement, playPauseButton, videoNum) {
     videoElement.currentTime = 0;
     if (videoElement === video1) isPlaying1 = false;
     else isPlaying2 = false;
-    playPauseButton.textContent = `Play ${videoNum}`;
+    playPauseButton.textContent = '▶';
     updateTimeSlider(videoElement, (videoNum === 1) ? timeSlider1 : timeSlider2, (videoNum === 1) ? timeValue1 : timeValue2);
     drawFrame();
     statusText.textContent = `Video ${videoNum} restarted.`;
 }
 
 function resetPositionAndScale() {
-    offsetXSlider.value = 0;
-    offsetYSlider.value = 0;
-    scaleSlider.value = 1.0;
-    offsetValueX.textContent = '0px';
-    offsetValueY.textContent = '0px';
-    scaleValue.textContent = '1.00x';
+    currentOffsetX = 0;
+    currentOffsetY = 0;
+    currentScale = 1.0;
     drawFrame();
     statusText.textContent = 'Video 2 position and scale reset.';
 }
 
 function playAllVideos() {
-    if (videoLoadedCount < 2) {
+    if (!video1Ready || !video2Ready) {
         statusText.textContent = "Please upload both videos first!";
         return;
     }
@@ -247,8 +232,8 @@ function playAllVideos() {
         .then(() => {
             isPlaying1 = true;
             isPlaying2 = true;
-            playPauseButton1.textContent = 'Pause 1';
-            playPauseButton2.textContent = 'Pause 2';
+            playPauseButton1.textContent = '⏸';
+            playPauseButton2.textContent = '⏸';
             statusText.textContent = 'Playing both videos.';
         })
         .catch(error => {
@@ -262,8 +247,8 @@ function pauseAllVideos() {
     video2.pause();
     isPlaying1 = false;
     isPlaying2 = false;
-    playPauseButton1.textContent = 'Play 1';
-    playPauseButton2.textContent = 'Play 2';
+    playPauseButton1.textContent = '▶';
+    playPauseButton2.textContent = '▶';
     statusText.textContent = 'All videos paused.';
 }
 
@@ -272,7 +257,7 @@ function syncAllStarts() {
     video1.currentTime = 0;
     video2.currentTime = 0;
     
-    resetPositionAndScale(); // Also resets position and scale
+    resetPositionAndScale();
 
     updateTimeSlider(video1, timeSlider1, timeValue1);
     updateTimeSlider(video2, timeSlider2, timeValue2);
@@ -281,26 +266,18 @@ function syncAllStarts() {
 }
 
 function drawLoop() {
-    // Only continue drawing if at least one video is playing
-    // or if we're paused but need to draw due to user interaction (sliders, gestures)
-    if (isPlaying1 || isPlaying2 || videoLoadedCount === 2) {
+    // Only continue drawing if both videos are ready
+    if (video1Ready && video2Ready) {
         drawFrame();
     }
     
-    // Request next frame if either video is playing or if we are loaded and not explicitly paused.
-    // This ensures that even when paused, if a slider changes, the frame updates.
-    // We keep animationFrameId as a way to "keep the loop alive" when loaded.
-    if (videoLoadedCount === 2) { // Only run loop if both videos are ready
-        animationFrameId = requestAnimationFrame(drawLoop);
-    } else if (animationFrameId) {
-        // If videos are not ready and loop is running, stop it
-        cancelAnimationFrame(animationFrameId);
-        animationFrameId = null;
-    }
+    // Request next frame if both videos are ready (even if paused, to allow for scrubbing/touch)
+    // The loop keeps running to update the canvas based on video currentTime and touch transforms
+    animationFrameId = requestAnimationFrame(drawLoop);
 }
 
 function drawFrame() {
-    if (video1.readyState < 2 || video2.readyState < 2 || !video1.videoWidth || !video2.videoWidth) {
+    if (!video1Ready || !video2Ready || !video1.videoWidth || !video2.videoWidth) {
         ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
         return;
     }
@@ -314,16 +291,16 @@ function drawFrame() {
     ctx.globalAlpha = parseFloat(opacitySlider.value);
 
     // Get position and scale for Video 2
-    const offsetX = parseFloat(offsetXSlider.value);
-    const offsetY = parseFloat(offsetYSlider.value);
-    const scale = parseFloat(scaleSlider.value);
+    const scale = currentScale; // Use currentScale from touch events
+    const offsetX = currentOffsetX;
+    const offsetY = currentOffsetY;
 
     // Calculate scaled dimensions
     const scaledWidth = videoCanvas.width * scale;
     const scaledHeight = videoCanvas.height * scale;
 
     // Calculate position for drawing the scaled video
-    // We want to center the scaled video, then apply offsets.
+    // We want to center the scaled video (relative to its own size), then apply offsets.
     const drawX = offsetX + (videoCanvas.width - scaledWidth) / 2;
     const drawY = offsetY + (videoCanvas.height - scaledHeight) / 2;
 
@@ -334,7 +311,7 @@ function drawFrame() {
     ctx.globalAlpha = 1;
 }
 
-// --- Touch Event Handlers ---
+// --- Touch Event Handlers for Canvas (Pan and Pinch-Zoom for Video 2) ---
 
 function getDistance(touches) {
     if (touches.length < 2) return 0;
@@ -344,67 +321,66 @@ function getDistance(touches) {
 }
 
 function handleTouchStart(event) {
+    if (!video1Ready || !video2Ready) return; // Only enable gestures if videos are loaded
+
     event.preventDefault(); // Prevent scrolling and other default browser actions
 
     if (event.touches.length === 2) {
-        lastDistance = getDistance(event.touches);
-        initialScale = parseFloat(scaleSlider.value); // Store current scale
-        initialOffsetX = parseFloat(offsetXSlider.value); // Store current offset for reference
-        initialOffsetY = parseFloat(offsetYSlider.value);
-        isDragging = false; // Disable single-finger drag
+        initialTouchData.distance = getDistance(event.touches);
+        initialTouchData.scale = currentScale;
+        initialTouchData.offsetX = currentOffsetX;
+        initialTouchData.offsetY = currentOffsetY;
+        isDragging = false; // Two fingers override single-finger drag
     } else if (event.touches.length === 1) {
-        lastTouch.x = event.touches[0].clientX;
-        lastTouch.y = event.touches[0].clientY;
-        isDragging = true; // Enable single-finger drag
-        lastDistance = null; // Clear two-finger state
+        initialTouchData.x = event.touches[0].clientX;
+        initialTouchData.y = event.touches[0].clientY;
+        initialTouchData.offsetX = currentOffsetX; // Store current offset for relative pan
+        initialTouchData.offsetY = currentOffsetY;
+        isDragging = true;
+        initialTouchData.distance = 0; // Clear two-finger state
     }
 }
 
 function handleTouchMove(event) {
+    if (!video1Ready || !video2Ready) return;
     event.preventDefault(); // Prevent scrolling
 
-    if (event.touches.length === 2 && lastDistance !== null) {
+    if (event.touches.length === 2 && initialTouchData.distance > 0) {
         const currentDistance = getDistance(event.touches);
-        if (currentDistance === 0) return; // Avoid division by zero
+        if (currentDistance === 0) return;
 
-        const scaleFactor = currentDistance / lastDistance;
-        let newScale = initialScale * scaleFactor;
+        const scaleFactor = currentDistance / initialTouchData.distance;
+        let newScale = initialTouchData.scale * scaleFactor;
 
-        // Clamp scale to slider min/max
-        newScale = Math.max(parseFloat(scaleSlider.min), Math.min(parseFloat(scaleSlider.max), newScale));
+        // Clamp scale to a reasonable range (e.g., 0.2x to 5x)
+        newScale = Math.max(0.2, Math.min(5.0, newScale));
+        currentScale = newScale;
         
-        scaleSlider.value = newScale.toFixed(2);
-        scaleValue.textContent = newScale.toFixed(2) + 'x';
+        // Redraw with new scale
         drawFrame();
 
     } else if (event.touches.length === 1 && isDragging) {
         const touch = event.touches[0];
-        const deltaX = touch.clientX - lastTouch.x;
-        const deltaY = touch.clientY - lastTouch.y;
+        const deltaX = touch.clientX - initialTouchData.x;
+        const deltaY = touch.clientY - initialTouchData.y;
 
-        let newOffsetX = parseFloat(offsetXSlider.value) + deltaX;
-        let newOffsetY = parseFloat(offsetYSlider.value) + deltaY;
+        let newOffsetX = initialTouchData.offsetX + deltaX;
+        let newOffsetY = initialTouchData.offsetY + deltaY;
+        
+        // Clamp offsets to prevent video from disappearing entirely
+        const maxOffset = Math.max(videoCanvas.width, videoCanvas.height); // Heuristic
+        currentOffsetX = Math.max(-maxOffset, Math.min(maxOffset, newOffsetX));
+        currentOffsetY = Math.max(-maxOffset, Math.min(maxOffset, newOffsetY));
 
-        // Clamp offsets to slider min/max (which are based on canvas size)
-        newOffsetX = Math.max(parseFloat(offsetXSlider.min), Math.min(parseFloat(offsetXSlider.max), newOffsetX));
-        newOffsetY = Math.max(parseFloat(offsetYSlider.min), Math.min(parseFloat(offsetYSlider.max), newOffsetY));
-
-        offsetXSlider.value = newOffsetX;
-        offsetYSlider.value = newOffsetY;
-        offsetValueX.textContent = newOffsetX.toFixed(0) + 'px';
-        offsetValueY.textContent = newOffsetY.toFixed(0) + 'px';
-
-        lastTouch.x = touch.clientX;
-        lastTouch.y = touch.clientY;
         drawFrame();
     }
 }
 
 function handleTouchEnd(event) {
-    lastDistance = null;
-    isDragging = false;
-    // No need to redraw on touchend unless specific state change needs it
+    initialTouchData.distance = 0; // Reset pinch state
+    isDragging = false; // Reset pan state
 }
+
 
 // Initial setup
 statusText.textContent = 'Ready to upload videos.';
