@@ -2,242 +2,266 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Calisthenics Form Compare</title>
     <style>
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 10px;
+            padding: 5px; /* Minimal padding */
             background-color: #f0f2f5;
             color: #333;
-            line-height: 1.6;
-            font-size: 14px; /* Base font size */
+            line-height: 1.4;
+            font-size: 14px;
         }
 
         .container {
-            max-width: 960px;
-            margin: 10px auto;
+            max-width: 600px;
+            margin: 0 auto;
             background-color: #fff;
-            padding: 15px;
+            padding: 10px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
 
         h1 {
             text-align: center;
             color: #0056b3;
-            margin-bottom: 15px; /* Compacted */
-            font-size: 1.8em;
-        }
-        h2 {
+            margin: 0 0 10px 0;
             font-size: 1.4em;
-            color: #444;
-            margin-top: 20px; /* Compacted */
-            margin-bottom: 10px; /* Compacted */
         }
 
-        .upload-section, .controls, .video-output {
-            margin-bottom: 15px; /* Compacted */
-            padding: 12px; /* Compacted */
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            background-color: #fdfdfd;
-        }
-
-        .upload-item {
-            margin-bottom: 10px; /* Compacted */
-        }
-        input[type="file"] {
-            margin-top: 5px;
-            display: block;
-            width: 100%;
+        /* Compact Upload Section */
+        .upload-section {
+            background: #f8f9fa;
             padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            box-sizing: border-box;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
         }
-        label {
-            font-weight: bold;
-            margin-bottom: 3px; /* Compacted */
-            display: block;
-            color: #555;
+        
+        /* Make file inputs side-by-side on wider phones, stacked on narrow */
+        .upload-item {
+            flex: 1 1 45%;
+            min-width: 200px;
         }
 
+        .upload-item label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 2px;
+            font-size: 0.85em;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 4px;
+            font-size: 0.85em;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+        }
+
+        #uploadStatus {
+            width: 100%;
+            text-align: center;
+            margin: 2px 0 0 0;
+            color: #666;
+            font-size: 0.8em;
+        }
+
+        /* Canvas Area */
+        .video-output {
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        
         canvas {
-            border: 2px solid #007bff;
             display: block;
-            margin: 15px auto; /* Compacted */
-            background-color: black;
+            margin: 0 auto;
+            background-color: #000;
             max-width: 100%;
-            height: auto;
             border-radius: 4px;
-            touch-action: none;
+            /* Touch action vital for gestures */
+            touch-action: none; 
         }
 
+        /* Compact Controls Container */
         .controls {
             display: flex;
             flex-direction: column;
-            gap: 10px; /* Compacted */
+            gap: 6px;
         }
+
+        /* Control Groups */
         .control-group {
-            border: 1px solid #e9e9e9;
-            padding: 8px; /* Compacted */
-            border-radius: 4px;
-            background-color: #f5f5f5;
+            background-color: #fcfcfc;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 6px 10px;
         }
-        .control-group h3 {
-            margin-top: 0;
-            margin-bottom: 8px; /* Compacted */
-            color: #666;
-            font-size: 1.1em;
-        }
-        .control-row {
+
+        /* Header Row: Title on left, Value on right. No blank space below. */
+        .header-row {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 8px; /* Compacted */
-            margin-bottom: 5px; /* Compacted */
+            margin-bottom: 2px;
         }
-        .control-row label {
-            flex-basis: 70px; /* Compacted */
-            margin-right: 0;
-            text-align: left;
-            font-weight: normal;
+
+        .header-row h3 {
+            margin: 0;
+            font-size: 1em;
+            color: #555;
+            font-weight: 600;
+        }
+
+        .header-row span {
+            font-family: monospace;
             font-size: 0.9em;
+            color: #007bff;
+            font-weight: bold;
         }
-        .control-row input[type="range"] {
-            flex-grow: 1;
-            width: auto;
-            height: 20px; /* Ensure slider is tall enough */
+
+        /* Slider Styles: Full width, directly under header */
+        input[type="range"] {
+            display: block;
+            width: 100%;
+            margin: 5px 0 8px 0; /* Tight spacing */
+            height: 20px;
+            cursor: pointer;
         }
-        .control-row span {
-            min-width: 45px; /* Compacted */
-            text-align: right;
-            font-size: 0.9em;
-        }
+
+        /* Button Group: Justified Center */
         .button-group {
             display: flex;
-            flex-wrap: wrap;
             justify-content: center;
-            margin-top: 10px; /* Compacted */
-            gap: 5px; /* Compacted */
+            gap: 15px; /* Space between buttons */
+            margin-top: 0;
         }
+
+        /* Square Buttons */
         .controls button {
-            padding: 8px 12px; /* Compacted */
+            width: 44px;  /* Square width */
+            height: 44px; /* Square height */
+            padding: 0;
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px; /* Softer corners */
             cursor: pointer;
-            font-size: 1em;
-            transition: background-color 0.3s ease;
-            flex-grow: 1;
-            min-width: 40px; /* Smaller min-width for icon buttons */
-            max-width: 80px; /* Max width to keep them square-ish */
-            box-sizing: border-box; /* Crucial for sizing */
-        }
-        .controls button:hover {
-            background-color: #0056b3;
-        }
-        .controls button:active {
-            background-color: #004085;
+            font-size: 1.2em; /* Icon size */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0; /* Prevent shrinking */
+            flex-grow: 0;   /* Prevent growing */
+            transition: background 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        #uploadStatus, #status {
+        .controls button:hover { background-color: #0056b3; }
+        .controls button:active { background-color: #004085; transform: translateY(1px); }
+
+        /* Status Text */
+        #status {
             text-align: center;
-            margin-top: 10px; /* Compacted */
+            margin: 5px 0 0 0;
             color: #555;
-            font-size: 0.9em;
-            min-height: 1.2em;
+            font-size: 0.85em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* Hidden video elements to load and decode video data */
+        /* Helper to hide original labels but keep inputs working */
+        .sr-only {
+            display: none; 
+        }
+
         #video1, #video2 { display: none; }
-
-        /* Media queries for smaller screens */
-        @media (max-width: 600px) {
-            h1 { font-size: 1.5em; }
-            h2 { font-size: 1.2em; }
-            .container { padding: 10px; margin: 5px auto; }
-            .upload-section, .controls, .video-output { padding: 10px; margin-bottom: 10px; }
-            .control-row { flex-direction: column; align-items: flex-start; }
-            .control-row label { width: 100%; margin-bottom: 5px; }
-            .control-row input[type="range"] { width: 100%; }
-            .button-group button { min-width: unset; width: 100%; max-width: unset; } /* Allow full width on very small */
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Calisthenics Form Compare</h1>
+        <h1>Calisthenics Compare</h1>
 
         <div class="upload-section">
-            <h2>Upload Videos</h2>
             <div class="upload-item">
-                <label for="fileInput1">Video 1 (Reference):</label>
+                <label>Ref Video</label>
                 <input type="file" id="fileInput1" accept="video/*">
             </div>
             <div class="upload-item">
-                <label for="fileInput2">Video 2 (Your Attempt):</label>
+                <label>Your Attempt</label>
                 <input type="file" id="fileInput2" accept="video/*">
             </div>
-            <p id="uploadStatus">Please upload two videos to begin.</p>
+            <p id="uploadStatus">Upload two videos.</p>
         </div>
 
         <div class="video-output">
-            <h2>Comparison View</h2>
             <canvas id="videoCanvas" width="640" height="360"></canvas>
         </div>
 
         <div class="controls">
-            <h2>Controls</h2>
+            
+            <!-- Opacity Section -->
             <div class="control-group">
-                <h3>Video Overlay</h3>
-                <div class="control-row">
-                    <label for="opacitySlider">Video 2 Opacity:</label>
-                    <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
-                    <span></span>
+                <div class="header-row">
+                    <h3>Overlay Opacity</h3>
+                    <!-- Value isn't dynamically updated in JS currently for opacity, leaving blank or static -->
+                    <span></span> 
                 </div>
+                <label for="opacitySlider" class="sr-only">Video 2 Opacity:</label>
+                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
             </div>
 
+            <!-- Video 1 Section -->
             <div class="control-group">
-                <h3>Video 1 Timeline</h3>
-                <div class="control-row">
-                    <label for="timeSlider1">Time:</label>
-                    <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
+                <div class="header-row">
+                    <h3>Reference Timeline</h3>
                     <span id="timeValue1">0.00s</span>
                 </div>
+                <label for="timeSlider1" class="sr-only">Time:</label>
+                <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
+                
                 <div class="button-group">
-                    <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶ / ⏸</button>
-                    <button id="restartButton1" aria-label="Restart Video 1">🔄</button>
+                    <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶</button>
+                    <button id="restartButton1" aria-label="Restart Video 1">↺</button>
                 </div>
             </div>
 
+            <!-- Video 2 Section -->
             <div class="control-group">
-                <h3>Video 2 Timeline & Transform (Pinch/Pan on Video)</h3>
-                <div class="control-row">
-                    <label for="timeSlider2">Time:</label>
-                    <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
+                <div class="header-row">
+                    <h3>Your Timeline (Pinch/Drag)</h3>
                     <span id="timeValue2">0.00s</span>
                 </div>
+                <label for="timeSlider2" class="sr-only">Time:</label>
+                <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
+                
                 <div class="button-group">
-                    <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶ / ⏸</button>
-                    <button id="restartButton2" aria-label="Restart Video 2">🔄</button>
-                    <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position and Scale">⛶</button>
+                    <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶</button>
+                    <button id="restartButton2" aria-label="Restart Video 2">↺</button>
+                    <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position">⛶</button>
                 </div>
             </div>
 
-            <div class="button-group">
-                <button id="playAllButton" aria-label="Play Both Videos">▶ ▶</button>
-                <button id="pauseAllButton" aria-label="Pause All Videos">⏸ ⏸</button>
-                <button id="syncAllStartsButton" aria-label="Sync Both Videos to Start">⏮</button>
+            <!-- Global Controls -->
+            <div class="control-group" style="background:transparent; border:none; padding:0;">
+                <div class="button-group">
+                    <button id="syncAllStartsButton" aria-label="Sync Start">⏮</button>
+                    <button id="pauseAllButton" aria-label="Pause All">⏸</button>
+                    <button id="playAllButton" aria-label="Play All">▶▶</button>
+                </div>
+                <p id="status"></p>
             </div>
-            <p id="status"></p>
         </div>
     </div>
 
-    <!-- Hidden video elements to load and decode video data -->
+    <!-- Hidden video elements -->
     <video id="video1" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
     <video id="video2" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
 
