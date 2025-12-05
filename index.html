@@ -3,14 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calisthenics Form Compare</title>
+    <title>FormCheck</title> <!-- Renamed the title as per previous request -->
     <style>
+        /* Dark Mode Color Scheme */
+        :root {
+            --primary-blue: #007bff;
+            --dark-background: #1e1e1e;
+            --medium-dark-background: #2b2b2b;
+            --light-card-background: #3a3a3a;
+            --text-color-light: #f0f0f0;
+            --text-color-medium: #b0b0b0;
+            --border-color: #4a4a4a;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 5px; /* Minimal padding */
-            background-color: #f0f2f5;
-            color: #333;
+            padding: 5px;
+            background-color: var(--dark-background); /* Dark background */
+            color: var(--text-color-light); /* Light text for contrast */
             line-height: 1.4;
             font-size: 14px;
         }
@@ -18,58 +30,92 @@
         .container {
             max-width: 600px;
             margin: 0 auto;
-            background-color: #fff;
+            background-color: var(--medium-dark-background); /* Slightly lighter dark for container */
             padding: 10px;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px var(--shadow-color);
         }
 
         h1 {
             text-align: center;
-            color: #0056b3;
+            color: var(--primary-blue);
             margin: 0 0 10px 0;
             font-size: 1.4em;
+            letter-spacing: 0.05em; /* A bit of style for the title */
         }
 
-        /* Compact Upload Section */
+        /* Upload Section Styling */
         .upload-section {
-            background: #f8f9fa;
+            background: var(--light-card-background);
             padding: 8px;
             border-radius: 6px;
             margin-bottom: 8px;
             font-size: 0.9em;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 5px;
+            display: flex; /* Keep flex for potential future layout tweaks */
+            flex-direction: column; /* Stack upload items vertically */
+            gap: 8px; /* Space between upload items */
         }
         
-        /* Make file inputs side-by-side on wider phones, stacked on narrow */
         .upload-item {
-            flex: 1 1 45%;
-            min-width: 200px;
+            display: flex;
+            flex-direction: column;
         }
 
         .upload-item label {
             display: block;
             font-weight: 600;
-            margin-bottom: 2px;
-            font-size: 0.85em;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+            color: var(--text-color-medium);
         }
 
-        input[type="file"] {
-            width: 100%;
-            padding: 4px;
-            font-size: 0.85em;
-            border: 1px solid #ccc;
+        /* Full width "Choose File" buttons and associated text */
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
             border-radius: 4px;
-            background: white;
+            overflow: hidden; /* To contain the custom button */
+            background-color: #444; /* Darker background for the input area */
         }
+
+        .file-input-wrapper input[type="file"] {
+            display: none; /* Hide the actual file input */
+        }
+
+        .file-input-wrapper .custom-file-button {
+            background-color: var(--primary-blue);
+            color: white;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px; /* Matches wrapper radius */
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            flex-shrink: 0; /* Prevents button from shrinking */
+            transition: background-color 0.2s;
+        }
+
+        .file-input-wrapper .custom-file-button:hover {
+            background-color: #0056b3;
+        }
+
+        .file-input-wrapper .file-name {
+            flex-grow: 1; /* Allows text to take remaining space */
+            padding: 0 10px;
+            color: var(--text-color-light);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.9em;
+        }
+
 
         #uploadStatus {
             width: 100%;
             text-align: center;
-            margin: 2px 0 0 0;
-            color: #666;
+            margin: 5px 0 0 0;
+            color: var(--text-color-medium);
             font-size: 0.8em;
         }
 
@@ -85,11 +131,11 @@
             background-color: #000;
             max-width: 100%;
             border-radius: 4px;
-            /* Touch action vital for gestures */
             touch-action: none; 
+            border: 2px solid var(--border-color); /* Subtle border for canvas */
         }
 
-        /* Compact Controls Container */
+        /* Controls Container */
         .controls {
             display: flex;
             flex-direction: column;
@@ -98,79 +144,134 @@
 
         /* Control Groups */
         .control-group {
-            background-color: #fcfcfc;
-            border: 1px solid #eee;
+            background-color: var(--light-card-background);
+            border: 1px solid var(--border-color);
             border-radius: 6px;
-            padding: 6px 10px;
+            padding: 8px 12px; /* Slightly more padding for inner content */
         }
 
-        /* Header Row: Title on left, Value on right. No blank space below. */
+        /* Header Row with Play/Reset buttons */
         .header-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2px;
+            margin-bottom: 5px;
         }
 
         .header-row h3 {
             margin: 0;
             font-size: 1em;
-            color: #555;
+            color: var(--text-color-light);
             font-weight: 600;
         }
 
         .header-row span {
             font-family: monospace;
             font-size: 0.9em;
-            color: #007bff;
+            color: var(--primary-blue);
             font-weight: bold;
+            min-width: 45px; /* Ensures consistent width */
+            text-align: right;
         }
 
-        /* Slider Styles: Full width, directly under header */
-        input[type="range"] {
-            display: block;
-            width: 100%;
-            margin: 5px 0 8px 0; /* Tight spacing */
-            height: 20px;
-            cursor: pointer;
-        }
-
-        /* Button Group: Justified Center */
-        .button-group {
+        .header-button-group {
             display: flex;
-            justify-content: center;
-            gap: 15px; /* Space between buttons */
-            margin-top: 0;
+            gap: 8px; /* Space between buttons next to timeline title */
         }
 
-        /* Square Buttons */
-        .controls button {
-            width: 44px;  /* Square width */
-            height: 44px; /* Square height */
+        .header-button-group button {
+            width: 32px;
+            height: 32px;
             padding: 0;
-            background-color: #007bff;
+            background-color: var(--primary-blue);
             color: white;
             border: none;
-            border-radius: 8px; /* Softer corners */
+            border-radius: 6px;
             cursor: pointer;
-            font-size: 1.2em; /* Icon size */
+            font-size: 1.1em;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0; /* Prevent shrinking */
-            flex-grow: 0;   /* Prevent growing */
+            flex-shrink: 0;
             transition: background 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
 
-        .controls button:hover { background-color: #0056b3; }
-        .controls button:active { background-color: #004085; transform: translateY(1px); }
+        .header-button-group button:hover { background-color: #0056b3; }
+        .header-button-group button:active { background-color: #004085; transform: translateY(1px); }
+
+
+        /* Slider Styles */
+        input[type="range"] {
+            display: block;
+            width: 100%;
+            margin: 5px 0 10px 0;
+            height: 20px; /* Ensures slider is clickable */
+            cursor: pointer;
+            -webkit-appearance: none; /* Remove default styling */
+            appearance: none;
+            background: #555; /* Darker track */
+            border-radius: 5px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-blue);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
+
+        /* Global Button Group: Larger, Full-width (adapted) */
+        .global-button-group {
+            display: flex;
+            justify-content: center; /* Center the group */
+            gap: 10px; /* Space between large buttons */
+            margin-top: 5px;
+        }
+
+        .global-button-group button {
+            flex: 1; /* Allow buttons to grow and fill space */
+            max-width: 100px; /* Limit max width for a squarish look on wider screens */
+            height: 60px; /* Larger height for global buttons */
+            padding: 0;
+            background-color: var(--primary-blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.5em; /* Larger icon size */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 1; 
+            transition: background 0.2s;
+            box-shadow: 0 3px 6px var(--shadow-color);
+        }
+
+        .global-button-group button:hover { background-color: #0056b3; }
+        .global-button-group button:active { background-color: #004085; transform: translateY(1px); }
+
 
         /* Status Text */
         #status {
             text-align: center;
-            margin: 5px 0 0 0;
-            color: #555;
+            margin: 10px 0 0 0;
+            color: var(--text-color-medium);
             font-size: 0.85em;
             white-space: nowrap;
             overflow: hidden;
@@ -187,16 +288,24 @@
 </head>
 <body>
     <div class="container">
-        <h1>Calisthenics Compare</h1>
+        <h1>FormCheck</h1> <!-- Updated app title -->
 
         <div class="upload-section">
             <div class="upload-item">
-                <label>Ref Video</label>
-                <input type="file" id="fileInput1" accept="video/*">
+                <label for="fileInput1">Reference Video</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput1" accept="video/*">
+                    <button class="custom-file-button" onclick="document.getElementById('fileInput1').click()">Choose File</button>
+                    <span class="file-name" id="fileName1">No file chosen</span>
+                </div>
             </div>
             <div class="upload-item">
-                <label>Your Attempt</label>
-                <input type="file" id="fileInput2" accept="video/*">
+                <label for="fileInput2">Your Attempt Video</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput2" accept="video/*">
+                    <button class="custom-file-button" onclick="document.getElementById('fileInput2').click()">Choose File</button>
+                    <span class="file-name" id="fileName2">No file chosen</span>
+                </div>
             </div>
             <p id="uploadStatus">Upload two videos.</p>
         </div>
@@ -211,50 +320,47 @@
             <div class="control-group">
                 <div class="header-row">
                     <h3>Overlay Opacity</h3>
-                    <!-- Value isn't dynamically updated in JS currently for opacity, leaving blank or static -->
-                    <span></span> 
+                    <span></span> <!-- Still no dynamic update for opacity value in JS yet -->
                 </div>
                 <label for="opacitySlider" class="sr-only">Video 2 Opacity:</label>
                 <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
             </div>
 
-            <!-- Video 1 Section -->
+            <!-- Video 1 (Reference) Section -->
             <div class="control-group">
                 <div class="header-row">
                     <h3>Reference Timeline</h3>
+                    <div class="header-button-group">
+                        <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶</button>
+                        <button id="restartButton1" aria-label="Restart Video 1">↺</button>
+                    </div>
                     <span id="timeValue1">0.00s</span>
                 </div>
                 <label for="timeSlider1" class="sr-only">Time:</label>
                 <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
-                
-                <div class="button-group">
-                    <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶</button>
-                    <button id="restartButton1" aria-label="Restart Video 1">↺</button>
-                </div>
             </div>
 
-            <!-- Video 2 Section -->
+            <!-- Video 2 (Your Attempt) Section -->
             <div class="control-group">
                 <div class="header-row">
                     <h3>Your Timeline (Pinch/Drag)</h3>
+                    <div class="header-button-group">
+                        <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶</button>
+                        <button id="restartButton2" aria-label="Restart Video 2">↺</button>
+                        <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position">⛶</button>
+                    </div>
                     <span id="timeValue2">0.00s</span>
                 </div>
                 <label for="timeSlider2" class="sr-only">Time:</label>
                 <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
-                
-                <div class="button-group">
-                    <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶</button>
-                    <button id="restartButton2" aria-label="Restart Video 2">↺</button>
-                    <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position">⛶</button>
-                </div>
             </div>
 
-            <!-- Global Controls -->
+            <!-- Global Controls (larger buttons) -->
             <div class="control-group" style="background:transparent; border:none; padding:0;">
-                <div class="button-group">
-                    <button id="syncAllStartsButton" aria-label="Sync Start">⏮</button>
-                    <button id="pauseAllButton" aria-label="Pause All">⏸</button>
-                    <button id="playAllButton" aria-label="Play All">▶▶</button>
+                <div class="global-button-group">
+                    <button id="syncAllStartsButton" aria-label="Sync Both Videos to Start">⏮</button>
+                    <button id="pauseAllButton" aria-label="Pause All Videos">⏸</button>
+                    <button id="playAllButton" aria-label="Play Both Videos">▶▶</button>
                 </div>
                 <p id="status"></p>
             </div>
