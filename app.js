@@ -5,27 +5,32 @@ const video1 = document.getElementById('video1');
 const video2 = document.getElementById('video2');
 const videoCanvas = document.getElementById('videoCanvas');
 const ctx = videoCanvas.getContext('2d');
+const aiLoader = document.getElementById('aiLoader');
 
 const fileName1 = document.getElementById('fileName1');
 const fileName2 = document.getElementById('fileName2');
 
 const opacitySlider = document.getElementById('opacitySlider');
 
+// Video 1 Controls
 const timeSlider1 = document.getElementById('timeSlider1');
 const timeValue1 = document.getElementById('timeValue1');
 const playPauseButton1 = document.getElementById('playPauseButton1');
 const restartButton1 = document.getElementById('restartButton1');
+const boneBtn1 = document.getElementById('boneBtn1'); // New button
 
+// Video 2 Controls
 const timeSlider2 = document.getElementById('timeSlider2');
 const timeValue2 = document.getElementById('timeValue2');
 const playPauseButton2 = document.getElementById('playPauseButton2');
 const restartButton2 = document.getElementById('restartButton2');
 const resetPositionScaleButton = document.getElementById('resetPositionScaleButton');
+const boneBtn2 = document.getElementById('boneBtn2'); // New button
 
+// Global Controls
 const playAllButton = document.getElementById('playAllButton');
 const pauseAllButton = document.getElementById('pauseAllButton');
 const syncAllStartsButton = document.getElementById('syncAllStartsButton');
-const toggleAnalysisButton = document.getElementById('toggleAnalysisButton');
 
 const uploadStatus = document.getElementById('uploadStatus');
 const statusText = document.getElementById('status');
@@ -47,12 +52,14 @@ let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance:
 let isDragging = false;
 
 // --- AI Analysis State ---
-let isAnalysisEnabled = false;
+let analyze1 = false;
+let analyze2 = false;
 let pose1 = null;
 let pose2 = null;
 let results1 = null;
 let results2 = null;
-let aiLoading = false;
+let loading1 = false;
+let loading2 = false;
 
 // --- Event Listeners ---
 
@@ -95,8 +102,9 @@ playAllButton.addEventListener('click', playAllVideos);
 pauseAllButton.addEventListener('click', pauseAllVideos);
 syncAllStartsButton.addEventListener('click', syncAllStarts);
 
-// Toggle AI Analysis
-toggleAnalysisButton.addEventListener('click', toggleAnalysis);
+// Separate AI Toggles
+boneBtn1.addEventListener('click', () => toggleAI(1));
+boneBtn2.addEventListener('click', () => toggleAI(2));
 
 window.addEventListener('resize', adjustCanvasSize);
 
@@ -119,8 +127,18 @@ function loadVideo(event, videoElement, videoNum) {
         
         statusText.textContent = `Loading Video ${videoNum}...`;
         
-        if (videoNum === 1) { video1Ready = false; results1 = null; }
-        else { video2Ready = false; results2 = null; }
+        // Reset state for this video
+        if (videoNum === 1) { 
+            video1Ready = false; 
+            results1 = null; 
+            analyze1 = false;
+            boneBtn1.classList.remove('active', 'loading');
+        } else { 
+            video2Ready = false; 
+            results2 = null; 
+            analyze2 = false;
+            boneBtn2.classList.remove('active', 'loading');
+        }
         
         pauseAllVideos();
         ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
@@ -228,117 +246,110 @@ function syncAllStarts() {
     drawFrame();
 }
 
-// --- AI Analysis Logic ---
+// --- AI Analysis Logic (Video 1 & 2 Separate) ---
 
-async function initPose() {
-    if (pose1 && pose2) return; // Already initialized
-
-    aiLoading = true;
-    statusText.textContent = "Loading AI models... (this may take a moment)";
-    toggleAnalysisButton.disabled = true;
-
-    try {
-        const createPose = () => {
-            const pose = new Pose({locateFile: (file) => {
-                return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
-            }});
-            pose.setOptions({
-                modelComplexity: 1, // 0=Lite, 1=Full, 2=Heavy. 1 is good balance.
-                smoothLandmarks: true,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
-            });
-            return pose;
-        };
-
-        pose1 = createPose();
-        pose1.onResults(onResults1);
-
-        pose2 = createPose();
-        pose2.onResults(onResults2);
-
-        statusText.textContent = "AI Ready. Analysis Active.";
-        toggleAnalysisButton.disabled = false;
-        aiLoading = false;
-        
-    } catch (e) {
-        console.error(e);
-        statusText.textContent = "Error loading AI.";
-        aiLoading = false;
-        isAnalysisEnabled = false;
-        toggleAnalysisButton.classList.remove('active');
-        toggleAnalysisButton.disabled = false;
-    }
+function createPoseModel(callback) {
+    const pose = new Pose({locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
+    }});
+    pose.setOptions({
+        modelComplexity: 1, 
+        smoothLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+    pose.onResults(callback);
+    return pose;
 }
 
-function toggleAnalysis() {
-    if (!video1Ready || !video2Ready) {
-        statusText.textContent = "Load videos first.";
-        return;
-    }
-
-    isAnalysisEnabled = !isAnalysisEnabled;
+async function toggleAI(num) {
+    const isV1 = (num === 1);
+    const btn = isV1 ? boneBtn1 : boneBtn2;
+    const currentState = isV1 ? analyze1 : analyze2;
     
-    if (isAnalysisEnabled) {
-        toggleAnalysisButton.classList.add('active');
-        if (!pose1) {
-            initPose();
-        } else {
-            statusText.textContent = "Analysis Active.";
-        }
-    } else {
-        toggleAnalysisButton.classList.remove('active');
-        statusText.textContent = "Analysis Off.";
-        // Clear results to stop drawing lines immediately
-        results1 = null;
-        results2 = null; 
+    if (currentState) {
+        // Turn OFF
+        if(isV1) { analyze1 = false; results1 = null; }
+        else { analyze2 = false; results2 = null; }
+        btn.classList.remove('active');
+        statusText.textContent = `Video ${num} Analysis OFF.`;
         drawFrame();
+    } else {
+        // Turn ON
+        if (!video1Ready || !video2Ready) {
+            statusText.textContent = "Please wait for videos to load.";
+            return;
+        }
+
+        btn.classList.add('loading');
+        aiLoader.style.display = 'block';
+        aiLoader.textContent = `Loading AI for Video ${num}...`;
+        statusText.textContent = `Initializing AI for Video ${num}...`;
+
+        // Delay slightly to let UI update
+        setTimeout(async () => {
+            try {
+                if (isV1) {
+                    if (!pose1) pose1 = createPoseModel((res) => results1 = res);
+                    loading1 = true;
+                    // Send one frame to "warm up"
+                    await pose1.send({image: video1});
+                    analyze1 = true;
+                    loading1 = false;
+                } else {
+                    if (!pose2) pose2 = createPoseModel((res) => results2 = res);
+                    loading2 = true;
+                    await pose2.send({image: video2});
+                    analyze2 = true;
+                    loading2 = false;
+                }
+
+                btn.classList.remove('loading');
+                btn.classList.add('active');
+                aiLoader.style.display = 'none';
+                statusText.textContent = `Video ${num} Analysis Active.`;
+
+            } catch (err) {
+                console.error(err);
+                statusText.textContent = "Error loading AI. Try refreshing.";
+                aiLoader.style.display = 'none';
+                btn.classList.remove('loading');
+            }
+        }, 100);
     }
 }
 
-function onResults1(results) {
-    results1 = results;
-}
-
-function onResults2(results) {
-    results2 = results;
-}
-
-// Send frames to AI for processing
+// Process loop
 async function processAI() {
-    if (!isAnalysisEnabled || aiLoading || !pose1 || !pose2) return;
-    
-    // We send data, but don't await strictly to avoid blocking UI too much,
-    // though MediaPipe is async.
-    await pose1.send({image: video1});
-    await pose2.send({image: video2});
+    // We try to process roughly every frame, but avoid blocking
+    if (analyze1 && pose1 && !loading1 && video1.readyState >= 2) {
+        await pose1.send({image: video1});
+    }
+    if (analyze2 && pose2 && !loading2 && video2.readyState >= 2) {
+        await pose2.send({image: video2});
+    }
 }
 
 function drawLoop() {
     if (video1Ready && video2Ready) {
-        // Trigger AI processing if enabled
-        if (isAnalysisEnabled) {
-            processAI();
-        }
-        drawFrame();
+        processAI(); // Trigger detection
+        drawFrame(); // Draw results
     }
     animationFrameId = requestAnimationFrame(drawLoop);
 }
 
-// Helper to draw the specific chain: Wrist->Elbow->Shoulder->Hip->Knee->Ankle
-function drawSkeletonChain(ctx, landmarks, scaleX, scaleY, offsetX, offsetY, scale, videoScaleX, videoScaleY) {
+// Helper to draw chain: Wrist->Elbow->Shoulder->Hip->Knee->Ankle
+function drawSkeletonChain(ctx, landmarks, offsetX, offsetY, scale, videoScaleX, videoScaleY) {
     if (!landmarks) return;
 
-    // Indices for Left side chain and Right side chain
-    // 11:L_Shoulder, 13:L_Elbow, 15:L_Wrist, 23:L_Hip, 25:L_Knee, 27:L_Ankle
-    // 12:R_Shoulder, 14:R_Elbow, 16:R_Wrist, 24:R_Hip, 26:R_Knee, 28:R_Ankle
+    // Indices for specific body line requested
     const leftChain = [15, 13, 11, 23, 25, 27];
     const rightChain = [16, 14, 12, 24, 26, 28];
 
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "white";
+    ctx.strokeStyle = "white"; // Bone color
 
     const drawChain = (indices) => {
         ctx.beginPath();
@@ -347,24 +358,18 @@ function drawSkeletonChain(ctx, landmarks, scaleX, scaleY, offsetX, offsetY, sca
         for (let i of indices) {
             const lm = landmarks[i];
             if (lm && lm.visibility > 0.5) {
-                // Calculate position based on video dimensions
+                // Video Coords
                 let x = lm.x * videoScaleX;
                 let y = lm.y * videoScaleY;
 
-                // Apply Transformations (Zoom/Pan/Scale)
-                // Logic: (Coord * scale) + offset + centerShift
-                // This math must match the ctx.transform used for the video layer
+                // Apply Viewport Transforms (Zoom/Pan)
                 if (scale !== 1.0 || offsetX !== 0 || offsetY !== 0) {
                      const centerX = videoCanvas.width / 2;
                      const centerY = videoCanvas.height / 2;
                      
-                     // 1. Center alignment shift (done in drawFrame)
-                     // 2. Translate to center, Scale, Translate back
-                     
-                     // Apply Scale
+                     // Center origin, scale, pan, uncenter
                      let centeredX = x - centerX;
                      let centeredY = y - centerY;
-                     
                      x = (centeredX * scale) + centerX + offsetX;
                      y = (centeredY * scale) + centerY + offsetY;
                 }
@@ -376,7 +381,7 @@ function drawSkeletonChain(ctx, landmarks, scaleX, scaleY, offsetX, offsetY, sca
                     ctx.lineTo(x, y);
                 }
             } else {
-                first = true; // Break line if point invisible
+                first = true; 
             }
         }
         ctx.stroke();
@@ -395,9 +400,9 @@ function drawFrame() {
     // --- Layer 1: Video 1 (Reference) ---
     ctx.drawImage(video1, 0, 0, videoCanvas.width, videoCanvas.height);
     
-    // Draw Skeleton 1 (No zoom transforms usually on Ref video in this UI)
-    if (isAnalysisEnabled && results1 && results1.poseLandmarks) {
-        drawSkeletonChain(ctx, results1.poseLandmarks, 1, 1, 0, 0, 1.0, videoCanvas.width, videoCanvas.height);
+    // Draw Skeleton 1 (Reference - No pan/zoom)
+    if (analyze1 && results1 && results1.poseLandmarks) {
+        drawSkeletonChain(ctx, results1.poseLandmarks, 0, 0, 1.0, videoCanvas.width, videoCanvas.height);
     }
 
     // --- Layer 2: Video 2 (Attempt) ---
@@ -407,7 +412,7 @@ function drawFrame() {
     const centerX = videoCanvas.width / 2;
     const centerY = videoCanvas.height / 2;
     
-    // Apply Transform for Video 2
+    // Apply Transform for Video 2 image
     ctx.translate(centerX + currentOffsetX, centerY + currentOffsetY);
     ctx.scale(currentScale, currentScale);
     ctx.translate(-centerX, -centerY);
@@ -415,16 +420,11 @@ function drawFrame() {
     ctx.drawImage(video2, 0, 0, videoCanvas.width, videoCanvas.height);
     ctx.restore();
 
-    // Draw Skeleton 2 (MUST Match Transform of Video 2)
-    // We pass the transform values to the helper to calculate coord positions manually
-    // because drawing lines on a transformed context with globalAlpha affects the line opacity too.
-    // We want SOLID white lines on top of semi-transparent video.
-    if (isAnalysisEnabled && results2 && results2.poseLandmarks) {
-        // We do NOT use globalAlpha for the skeleton. It should be solid.
+    // Draw Skeleton 2 (Attempt - Matches pan/zoom)
+    if (analyze2 && results2 && results2.poseLandmarks) {
         drawSkeletonChain(
             ctx, 
             results2.poseLandmarks, 
-            1, 1, 
             currentOffsetX, 
             currentOffsetY, 
             currentScale,

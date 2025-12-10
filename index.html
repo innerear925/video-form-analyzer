@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FormCheck</title>
     
-    <!-- AI Analysis Libraries (MediaPipe) -->
+    <!-- AI Analysis Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 
     <style>
-        /* Dark Mode Color Scheme */
         :root {
             --primary-blue: #4089ff; 
             --primary-blue-hover: #3376e0;
+            --active-green: #00e676; /* Bright green for active AI */
+            --loading-yellow: #ffea00;
             --dark-background: #1e1e1e;
             --medium-dark-background: #2b2b2b;
             --light-card-background: #3a3a3a;
@@ -117,6 +118,7 @@
         .video-output {
             margin-bottom: 5px;
             text-align: center;
+            position: relative;
         }
         
         canvas {
@@ -127,6 +129,21 @@
             border-radius: 4px;
             touch-action: none; 
             border: 2px solid var(--border-color);
+        }
+
+        /* Loading Overlay for Canvas */
+        #aiLoader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: none;
+            pointer-events: none;
         }
 
         .controls {
@@ -165,7 +182,7 @@
             text-align: right;
         }
 
-        /* Small Buttons (Play/Reset) */
+        /* Small Buttons (Play/Restart/Bone) */
         .header-button-group {
             display: flex;
             gap: 8px;
@@ -190,6 +207,24 @@
         }
 
         .header-button-group button:hover { background-color: var(--primary-blue-hover); }
+
+        /* Bone Button Specific States */
+        .header-button-group button.bone-btn {
+            font-size: 1.0em; /* Adjust emoji size */
+            text-shadow: 0 0 0 white; /* Default white */
+        }
+        
+        /* Active State (Green) */
+        .header-button-group button.bone-btn.active {
+            background-color: var(--active-green);
+            text-shadow: 0 0 0 #000; /* Black icon on green */
+        }
+        
+        /* Loading State (Yellow) */
+        .header-button-group button.bone-btn.loading {
+            background-color: var(--loading-yellow);
+            cursor: wait;
+        }
 
         /* Slider Styles */
         input[type="range"] {
@@ -244,11 +279,6 @@
             text-shadow: 0 0 0 white;
         }
         
-        /* Specific style for the analysis button to toggle color */
-        #toggleAnalysisButton.active {
-            background-color: #28a745; /* Green when active */
-        }
-
         .global-button-group button:hover { opacity: 0.9; }
         .global-button-group button:active { transform: translateY(1px); }
 
@@ -292,11 +322,11 @@
 
         <div class="video-output">
             <canvas id="videoCanvas" width="640" height="360"></canvas>
+            <div id="aiLoader">Initializing AI...</div>
         </div>
 
         <div class="controls">
             
-            <!-- Opacity Section -->
             <div class="control-group">
                 <div class="header-row">
                     <h3>Overlay Opacity</h3>
@@ -306,13 +336,15 @@
                 <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
             </div>
 
-            <!-- Video 1 (Reference) Section -->
+            <!-- Video 1 Section -->
             <div class="control-group">
                 <div class="header-row">
                     <h3>Reference Timeline</h3>
                     <div class="header-button-group">
                         <button id="playPauseButton1" aria-label="Play/Pause">▶</button>
                         <button id="restartButton1" aria-label="Restart">↺</button>
+                        <!-- Dedicated Bone Button for Video 1 -->
+                        <button id="boneBtn1" class="bone-btn" aria-label="Analyze Video 1">🦴</button>
                     </div>
                     <span id="timeValue1">0.00s</span>
                 </div>
@@ -320,7 +352,7 @@
                 <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
             </div>
 
-            <!-- Video 2 (Your Attempt) Section -->
+            <!-- Video 2 Section -->
             <div class="control-group">
                 <div class="header-row">
                     <h3>Your Timeline</h3>
@@ -328,6 +360,8 @@
                         <button id="playPauseButton2" aria-label="Play/Pause">▶</button>
                         <button id="restartButton2" aria-label="Restart">↺</button>
                         <button id="resetPositionScaleButton" aria-label="Reset Position">⛶</button>
+                        <!-- Dedicated Bone Button for Video 2 -->
+                        <button id="boneBtn2" class="bone-btn" aria-label="Analyze Video 2">🦴</button>
                     </div>
                     <span id="timeValue2">0.00s</span>
                 </div>
@@ -335,15 +369,12 @@
                 <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
             </div>
 
-            <!-- Global Controls (Full Width) -->
+            <!-- Global Controls -->
             <div class="control-group" style="background:transparent; border:none; padding:0;">
                 <div class="global-button-group">
-                    <button id="toggleAnalysisButton" aria-label="Analyze Body Lines">🦴</button>
+                    <button id="syncAllStartsButton" aria-label="Sync Start">⏮</button>
                     <button id="pauseAllButton" aria-label="Pause All">⏸</button>
                     <button id="playAllButton" aria-label="Play All">▶▶</button>
-                </div>
-                <div class="global-button-group" style="margin-top: 5px;">
-                    <button id="syncAllStartsButton" style="width:100%" aria-label="Sync Start">⏮ Sync Start</button>
                 </div>
                 <p id="status"></p>
             </div>
