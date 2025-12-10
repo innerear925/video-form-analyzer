@@ -3,11 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FormCheck</title> <!-- Renamed the title as per previous request -->
+    <title>FormCheck</title>
+    
+    <!-- AI Analysis Libraries (MediaPipe) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
     <style>
         /* Dark Mode Color Scheme */
         :root {
-            --primary-blue: #007bff;
+            --primary-blue: #4089ff; 
+            --primary-blue-hover: #3376e0;
             --dark-background: #1e1e1e;
             --medium-dark-background: #2b2b2b;
             --light-card-background: #3a3a3a;
@@ -21,8 +28,8 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 5px;
-            background-color: var(--dark-background); /* Dark background */
-            color: var(--text-color-light); /* Light text for contrast */
+            background-color: var(--dark-background);
+            color: var(--text-color-light);
             line-height: 1.4;
             font-size: 14px;
         }
@@ -30,7 +37,7 @@
         .container {
             max-width: 600px;
             margin: 0 auto;
-            background-color: var(--medium-dark-background); /* Slightly lighter dark for container */
+            background-color: var(--medium-dark-background);
             padding: 10px;
             border-radius: 8px;
             box-shadow: 0 1px 3px var(--shadow-color);
@@ -41,26 +48,21 @@
             color: var(--primary-blue);
             margin: 0 0 10px 0;
             font-size: 1.4em;
-            letter-spacing: 0.05em; /* A bit of style for the title */
+            letter-spacing: 0.05em;
         }
 
-        /* Upload Section Styling */
+        /* Upload Section */
         .upload-section {
             background: var(--light-card-background);
             padding: 8px;
             border-radius: 6px;
             margin-bottom: 8px;
             font-size: 0.9em;
-            display: flex; /* Keep flex for potential future layout tweaks */
-            flex-direction: column; /* Stack upload items vertically */
-            gap: 8px; /* Space between upload items */
-        }
-        
-        .upload-item {
             display: flex;
             flex-direction: column;
+            gap: 8px;
         }
-
+        
         .upload-item label {
             display: block;
             font-weight: 600;
@@ -69,39 +71,32 @@
             color: var(--text-color-medium);
         }
 
-        /* Full width "Choose File" buttons and associated text */
         .file-input-wrapper {
             display: flex;
             align-items: center;
             border: 1px solid var(--border-color);
             border-radius: 4px;
-            overflow: hidden; /* To contain the custom button */
-            background-color: #444; /* Darker background for the input area */
+            overflow: hidden;
+            background-color: #444;
         }
 
-        .file-input-wrapper input[type="file"] {
-            display: none; /* Hide the actual file input */
-        }
+        .file-input-wrapper input[type="file"] { display: none; }
 
         .file-input-wrapper .custom-file-button {
             background-color: var(--primary-blue);
             color: white;
             padding: 8px 12px;
             border: none;
-            border-radius: 4px; /* Matches wrapper radius */
+            border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
             font-weight: bold;
-            flex-shrink: 0; /* Prevents button from shrinking */
+            flex-shrink: 0;
             transition: background-color 0.2s;
         }
 
-        .file-input-wrapper .custom-file-button:hover {
-            background-color: #0056b3;
-        }
-
         .file-input-wrapper .file-name {
-            flex-grow: 1; /* Allows text to take remaining space */
+            flex-grow: 1;
             padding: 0 10px;
             color: var(--text-color-light);
             white-space: nowrap;
@@ -109,7 +104,6 @@
             text-overflow: ellipsis;
             font-size: 0.9em;
         }
-
 
         #uploadStatus {
             width: 100%;
@@ -119,7 +113,7 @@
             font-size: 0.8em;
         }
 
-        /* Canvas Area */
+        /* Canvas */
         .video-output {
             margin-bottom: 5px;
             text-align: center;
@@ -132,25 +126,22 @@
             max-width: 100%;
             border-radius: 4px;
             touch-action: none; 
-            border: 2px solid var(--border-color); /* Subtle border for canvas */
+            border: 2px solid var(--border-color);
         }
 
-        /* Controls Container */
         .controls {
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
 
-        /* Control Groups */
         .control-group {
             background-color: var(--light-card-background);
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            padding: 8px 12px; /* Slightly more padding for inner content */
+            padding: 8px 12px;
         }
 
-        /* Header Row with Play/Reset buttons */
         .header-row {
             display: flex;
             justify-content: space-between;
@@ -170,21 +161,21 @@
             font-size: 0.9em;
             color: var(--primary-blue);
             font-weight: bold;
-            min-width: 45px; /* Ensures consistent width */
+            min-width: 45px;
             text-align: right;
         }
 
+        /* Small Buttons (Play/Reset) */
         .header-button-group {
             display: flex;
-            gap: 8px; /* Space between buttons next to timeline title */
+            gap: 8px;
         }
 
         .header-button-group button {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             padding: 0;
             background-color: var(--primary-blue);
-            color: white;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -194,22 +185,22 @@
             justify-content: center;
             flex-shrink: 0;
             transition: background 0.2s;
+            color: transparent;
+            text-shadow: 0 0 0 white;
         }
 
-        .header-button-group button:hover { background-color: #0056b3; }
-        .header-button-group button:active { background-color: #004085; transform: translateY(1px); }
-
+        .header-button-group button:hover { background-color: var(--primary-blue-hover); }
 
         /* Slider Styles */
         input[type="range"] {
             display: block;
             width: 100%;
             margin: 5px 0 10px 0;
-            height: 20px; /* Ensures slider is clickable */
+            height: 20px;
             cursor: pointer;
-            -webkit-appearance: none; /* Remove default styling */
+            -webkit-appearance: none;
             appearance: none;
-            background: #555; /* Darker track */
+            background: #555;
             border-radius: 5px;
         }
 
@@ -225,49 +216,42 @@
             box-shadow: 0 0 2px rgba(0,0,0,0.5);
         }
 
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--primary-blue);
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 0 2px rgba(0,0,0,0.5);
-        }
-
-
-        /* Global Button Group: Larger, Full-width (adapted) */
+        /* Global Button Group */
         .global-button-group {
             display: flex;
-            justify-content: center; /* Center the group */
-            gap: 10px; /* Space between large buttons */
+            justify-content: space-between; 
+            gap: 8px;
             margin-top: 5px;
+            width: 100%;
         }
 
         .global-button-group button {
-            flex: 1; /* Allow buttons to grow and fill space */
-            max-width: 100px; /* Limit max width for a squarish look on wider screens */
-            height: 60px; /* Larger height for global buttons */
+            flex: 1; 
+            max-width: none; 
+            height: 55px;
             padding: 0;
             background-color: var(--primary-blue);
-            color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1.5em; /* Larger icon size */
+            font-size: 1.5em;
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 1; 
             transition: background 0.2s;
             box-shadow: 0 3px 6px var(--shadow-color);
+            color: transparent;
+            text-shadow: 0 0 0 white;
+        }
+        
+        /* Specific style for the analysis button to toggle color */
+        #toggleAnalysisButton.active {
+            background-color: #28a745; /* Green when active */
         }
 
-        .global-button-group button:hover { background-color: #0056b3; }
-        .global-button-group button:active { background-color: #004085; transform: translateY(1px); }
+        .global-button-group button:hover { opacity: 0.9; }
+        .global-button-group button:active { transform: translateY(1px); }
 
-
-        /* Status Text */
         #status {
             text-align: center;
             margin: 10px 0 0 0;
@@ -278,21 +262,17 @@
             text-overflow: ellipsis;
         }
 
-        /* Helper to hide original labels but keep inputs working */
-        .sr-only {
-            display: none; 
-        }
-
+        .sr-only { display: none; }
         #video1, #video2 { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>FormCheck</h1> <!-- Updated app title -->
+        <h1>FormCheck</h1>
 
         <div class="upload-section">
             <div class="upload-item">
-                <label for="fileInput1">Reference Video</label>
+                <label>Reference Video</label>
                 <div class="file-input-wrapper">
                     <input type="file" id="fileInput1" accept="video/*">
                     <button class="custom-file-button" onclick="document.getElementById('fileInput1').click()">Choose File</button>
@@ -300,7 +280,7 @@
                 </div>
             </div>
             <div class="upload-item">
-                <label for="fileInput2">Your Attempt Video</label>
+                <label>Your Attempt Video</label>
                 <div class="file-input-wrapper">
                     <input type="file" id="fileInput2" accept="video/*">
                     <button class="custom-file-button" onclick="document.getElementById('fileInput2').click()">Choose File</button>
@@ -320,7 +300,7 @@
             <div class="control-group">
                 <div class="header-row">
                     <h3>Overlay Opacity</h3>
-                    <span></span> <!-- Still no dynamic update for opacity value in JS yet -->
+                    <span></span> 
                 </div>
                 <label for="opacitySlider" class="sr-only">Video 2 Opacity:</label>
                 <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
@@ -331,8 +311,8 @@
                 <div class="header-row">
                     <h3>Reference Timeline</h3>
                     <div class="header-button-group">
-                        <button id="playPauseButton1" aria-label="Play/Pause Video 1">▶</button>
-                        <button id="restartButton1" aria-label="Restart Video 1">↺</button>
+                        <button id="playPauseButton1" aria-label="Play/Pause">▶</button>
+                        <button id="restartButton1" aria-label="Restart">↺</button>
                     </div>
                     <span id="timeValue1">0.00s</span>
                 </div>
@@ -343,11 +323,11 @@
             <!-- Video 2 (Your Attempt) Section -->
             <div class="control-group">
                 <div class="header-row">
-                    <h3>Your Timeline (Pinch/Drag)</h3>
+                    <h3>Your Timeline</h3>
                     <div class="header-button-group">
-                        <button id="playPauseButton2" aria-label="Play/Pause Video 2">▶</button>
-                        <button id="restartButton2" aria-label="Restart Video 2">↺</button>
-                        <button id="resetPositionScaleButton" aria-label="Reset Video 2 Position">⛶</button>
+                        <button id="playPauseButton2" aria-label="Play/Pause">▶</button>
+                        <button id="restartButton2" aria-label="Restart">↺</button>
+                        <button id="resetPositionScaleButton" aria-label="Reset Position">⛶</button>
                     </div>
                     <span id="timeValue2">0.00s</span>
                 </div>
@@ -355,12 +335,15 @@
                 <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
             </div>
 
-            <!-- Global Controls (larger buttons) -->
+            <!-- Global Controls (Full Width) -->
             <div class="control-group" style="background:transparent; border:none; padding:0;">
                 <div class="global-button-group">
-                    <button id="syncAllStartsButton" aria-label="Sync Both Videos to Start">⏮</button>
-                    <button id="pauseAllButton" aria-label="Pause All Videos">⏸</button>
-                    <button id="playAllButton" aria-label="Play Both Videos">▶▶</button>
+                    <button id="toggleAnalysisButton" aria-label="Analyze Body Lines">🦴</button>
+                    <button id="pauseAllButton" aria-label="Pause All">⏸</button>
+                    <button id="playAllButton" aria-label="Play All">▶▶</button>
+                </div>
+                <div class="global-button-group" style="margin-top: 5px;">
+                    <button id="syncAllStartsButton" style="width:100%" aria-label="Sync Start">⏮ Sync Start</button>
                 </div>
                 <p id="status"></p>
             </div>
