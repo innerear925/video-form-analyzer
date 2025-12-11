@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Feature 6: Removed maximum-scale and user-scalable=no to allow Page Zoom -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FormCheck</title>
     
     <!-- AI Analysis Libraries -->
@@ -14,8 +15,8 @@
         :root {
             --primary-blue: #4089ff; 
             --primary-blue-hover: #3376e0;
-            --active-green: #00e676; /* Bright green for active AI */
-            --loading-yellow: #ffea00;
+            --active-green: #00e676;
+            --trim-orange: #ff9100;
             --dark-background: #1e1e1e;
             --medium-dark-background: #2b2b2b;
             --light-card-background: #3a3a3a;
@@ -33,6 +34,8 @@
             color: var(--text-color-light);
             line-height: 1.4;
             font-size: 14px;
+            /* Prevent pull-to-refresh on mobile to make drawing easier */
+            overscroll-behavior: none; 
         }
 
         .container {
@@ -127,11 +130,12 @@
             background-color: #000;
             max-width: 100%;
             border-radius: 4px;
+            /* Feature 6: Keep touch-action none ON THE CANVAS so drawing works, 
+               but the rest of the page can zoom */
             touch-action: none; 
             border: 2px solid var(--border-color);
         }
 
-        /* Loading Overlay for Canvas */
         #aiLoader {
             position: absolute;
             top: 50%;
@@ -182,13 +186,8 @@
             text-align: right;
         }
 
-        /* Small Buttons (Play/Restart/Bone) */
-        .header-button-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .header-button-group button {
+        /* Standard Icon Buttons */
+        .icon-btn {
             width: 34px;
             height: 34px;
             padding: 0;
@@ -205,25 +204,27 @@
             color: transparent;
             text-shadow: 0 0 0 white;
         }
-
-        .header-button-group button:hover { background-color: var(--primary-blue-hover); }
-
-        /* Bone Button Specific States */
-        .header-button-group button.bone-btn {
-            font-size: 1.0em; /* Adjust emoji size */
-            text-shadow: 0 0 0 white; /* Default white */
-        }
         
-        /* Active State (Green) */
-        .header-button-group button.bone-btn.active {
-            background-color: var(--active-green);
-            text-shadow: 0 0 0 #000; /* Black icon on green */
+        .icon-btn:hover { background-color: var(--primary-blue-hover); }
+        .icon-btn.active { background-color: var(--active-green); box-shadow: 0 0 5px var(--active-green); }
+        .icon-btn.loading { background-color: #ffea00; cursor: wait; }
+
+        /* Small text/trim buttons */
+        .trim-btn {
+            width: 28px;
+            height: 28px;
+            font-size: 0.9em;
+            font-weight: bold;
+            text-shadow: none;
+            color: white;
+            background-color: #555;
         }
-        
-        /* Loading State (Yellow) */
-        .header-button-group button.bone-btn.loading {
-            background-color: var(--loading-yellow);
-            cursor: wait;
+        .trim-btn:active { background-color: var(--trim-orange); }
+
+        .header-button-group {
+            display: flex;
+            gap: 6px;
+            align-items: center;
         }
 
         /* Slider Styles */
@@ -235,8 +236,36 @@
             cursor: pointer;
             -webkit-appearance: none;
             appearance: none;
-            background: #555;
+            background: transparent; /* Track handled by JS gradient */
             border-radius: 5px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        /* Custom track background for visual trim range */
+        .slider-container {
+            position: relative;
+            height: 20px;
+            background: #444;
+            border-radius: 5px;
+            margin: 5px 0 10px 0;
+            overflow: hidden;
+        }
+        .slider-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 100%; /* JS will adjust */
+            background: #666; /* Trimmed out area color */
+            pointer-events: none;
+        }
+        .slider-active-range {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: var(--dark-background); /* Active area */
+            pointer-events: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
@@ -249,9 +278,10 @@
             cursor: pointer;
             border: 2px solid white;
             box-shadow: 0 0 2px rgba(0,0,0,0.5);
+            margin-top: 0;
         }
 
-        /* Global Button Group */
+        /* Global/Toolbar Button Group */
         .global-button-group {
             display: flex;
             justify-content: space-between; 
@@ -263,13 +293,13 @@
         .global-button-group button {
             flex: 1; 
             max-width: none; 
-            height: 55px;
+            height: 50px;
             padding: 0;
             background-color: var(--primary-blue);
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 1.5em;
+            font-size: 1.4em;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -280,7 +310,31 @@
         }
         
         .global-button-group button:hover { opacity: 0.9; }
-        .global-button-group button:active { transform: translateY(1px); }
+        .global-button-group button.active { background-color: var(--active-green); }
+
+        /* Annotation Toolbar */
+        .annotation-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid var(--border-color);
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .color-palette {
+            display: none; /* Hidden until Draw/Text is active */
+            gap: 5px;
+        }
+        .color-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+        }
+        .color-dot.selected { transform: scale(1.2); border-color: #000; box-shadow: 0 0 5px white;}
 
         #status {
             text-align: center;
@@ -339,34 +393,64 @@
             <!-- Video 1 Section -->
             <div class="control-group">
                 <div class="header-row">
-                    <h3>Reference Timeline</h3>
+                    <h3>Reference</h3>
                     <div class="header-button-group">
-                        <button id="playPauseButton1" aria-label="Play/Pause">▶</button>
-                        <button id="restartButton1" aria-label="Restart">↺</button>
-                        <!-- Dedicated Bone Button for Video 1 -->
-                        <button id="boneBtn1" class="bone-btn" aria-label="Analyze Video 1">🦴</button>
+                        <button id="moveV1Btn" class="icon-btn" aria-label="Move/Resize Video 1">✥</button>
+                        <button id="playPauseButton1" class="icon-btn" aria-label="Play/Pause">▶</button>
+                        <button id="restartButton1" class="icon-btn" aria-label="Restart">↺</button>
+                        <button id="boneBtn1" class="icon-btn bone-btn" aria-label="Analyze Video 1">🦴</button>
                     </div>
                     <span id="timeValue1">0.00s</span>
                 </div>
-                <label for="timeSlider1" class="sr-only">Time:</label>
+                <div class="header-button-group" style="margin-bottom: 5px;">
+                     <!-- Feature 2: Trimming Buttons -->
+                    <button id="setStart1" class="icon-btn trim-btn">[</button>
+                    <button id="setEnd1" class="icon-btn trim-btn">]</button>
+                    <label style="font-size:0.8em; color:#aaa;">Trim</label>
+                </div>
                 <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
             </div>
 
             <!-- Video 2 Section -->
             <div class="control-group">
                 <div class="header-row">
-                    <h3>Your Timeline</h3>
+                    <h3>Your Attempt</h3>
                     <div class="header-button-group">
-                        <button id="playPauseButton2" aria-label="Play/Pause">▶</button>
-                        <button id="restartButton2" aria-label="Restart">↺</button>
-                        <button id="resetPositionScaleButton" aria-label="Reset Position">⛶</button>
-                        <!-- Dedicated Bone Button for Video 2 -->
-                        <button id="boneBtn2" class="bone-btn" aria-label="Analyze Video 2">🦴</button>
+                         <!-- Feature 1: Move Button for Video 2 -->
+                        <button id="moveV2Btn" class="icon-btn" aria-label="Move/Resize Video 2">✥</button>
+                        <button id="playPauseButton2" class="icon-btn" aria-label="Play/Pause">▶</button>
+                        <button id="restartButton2" class="icon-btn" aria-label="Restart">↺</button>
+                        <button id="resetPositionScaleButton" class="icon-btn" aria-label="Reset Position">⛶</button>
+                        <button id="boneBtn2" class="icon-btn bone-btn" aria-label="Analyze Video 2">🦴</button>
                     </div>
                     <span id="timeValue2">0.00s</span>
                 </div>
-                <label for="timeSlider2" class="sr-only">Time:</label>
+                <div class="header-button-group" style="margin-bottom: 5px;">
+                    <!-- Feature 2: Trimming Buttons -->
+                    <button id="setStart2" class="icon-btn trim-btn">[</button>
+                    <button id="setEnd2" class="icon-btn trim-btn">]</button>
+                    <label style="font-size:0.8em; color:#aaa;">Trim</label>
+                </div>
                 <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
+            </div>
+
+            <!-- Annotation Toolbar (Feature 3, 4, 5) -->
+            <div class="control-group">
+                <div class="global-button-group">
+                    <button id="drawBtn" class="icon-btn" aria-label="Draw">✏️</button>
+                    <button id="textBtn" class="icon-btn" aria-label="Text">T</button>
+                    <button id="undoBtn" class="icon-btn" aria-label="Undo">↩</button>
+                </div>
+                <div class="annotation-toolbar">
+                    <div id="colorPalette" class="color-palette">
+                        <div class="color-dot selected" style="background: #ff3b30;" data-color="#ff3b30"></div>
+                        <div class="color-dot" style="background: #4cd964;" data-color="#4cd964"></div>
+                        <div class="color-dot" style="background: #007aff;" data-color="#007aff"></div>
+                        <div class="color-dot" style="background: #ffcc00;" data-color="#ffcc00"></div>
+                        <div class="color-dot" style="background: #ffffff;" data-color="#ffffff"></div>
+                    </div>
+                    <span id="toolStatus" style="font-size: 0.9em; color: #888;">Select a tool</span>
+                </div>
             </div>
 
             <!-- Global Controls -->
