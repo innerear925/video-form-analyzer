@@ -17,7 +17,7 @@ const timeSlider1 = document.getElementById('timeSlider1');
 const timeValue1 = document.getElementById('timeValue1');
 const playPauseButton1 = document.getElementById('playPauseButton1');
 const restartButton1 = document.getElementById('restartButton1');
-const boneBtn1 = document.getElementById('boneBtn1'); // New button
+const boneBtn1 = document.getElementById('boneBtn1');
 
 // Video 2 Controls
 const timeSlider2 = document.getElementById('timeSlider2');
@@ -25,7 +25,7 @@ const timeValue2 = document.getElementById('timeValue2');
 const playPauseButton2 = document.getElementById('playPauseButton2');
 const restartButton2 = document.getElementById('restartButton2');
 const resetPositionScaleButton = document.getElementById('resetPositionScaleButton');
-const boneBtn2 = document.getElementById('boneBtn2'); // New button
+const boneBtn2 = document.getElementById('boneBtn2');
 
 // Global Controls
 const playAllButton = document.getElementById('playAllButton');
@@ -127,7 +127,6 @@ function loadVideo(event, videoElement, videoNum) {
         
         statusText.textContent = `Loading Video ${videoNum}...`;
         
-        // Reset state for this video
         if (videoNum === 1) { 
             video1Ready = false; 
             results1 = null; 
@@ -246,7 +245,7 @@ function syncAllStarts() {
     drawFrame();
 }
 
-// --- AI Analysis Logic (Video 1 & 2 Separate) ---
+// --- AI Analysis Logic ---
 
 function createPoseModel(callback) {
     const pose = new Pose({locateFile: (file) => {
@@ -268,14 +267,12 @@ async function toggleAI(num) {
     const currentState = isV1 ? analyze1 : analyze2;
     
     if (currentState) {
-        // Turn OFF
         if(isV1) { analyze1 = false; results1 = null; }
         else { analyze2 = false; results2 = null; }
         btn.classList.remove('active');
         statusText.textContent = `Video ${num} Analysis OFF.`;
         drawFrame();
     } else {
-        // Turn ON
         if (!video1Ready || !video2Ready) {
             statusText.textContent = "Please wait for videos to load.";
             return;
@@ -286,13 +283,11 @@ async function toggleAI(num) {
         aiLoader.textContent = `Loading AI for Video ${num}...`;
         statusText.textContent = `Initializing AI for Video ${num}...`;
 
-        // Delay slightly to let UI update
         setTimeout(async () => {
             try {
                 if (isV1) {
                     if (!pose1) pose1 = createPoseModel((res) => results1 = res);
                     loading1 = true;
-                    // Send one frame to "warm up"
                     await pose1.send({image: video1});
                     analyze1 = true;
                     loading1 = false;
@@ -319,9 +314,7 @@ async function toggleAI(num) {
     }
 }
 
-// Process loop
 async function processAI() {
-    // We try to process roughly every frame, but avoid blocking
     if (analyze1 && pose1 && !loading1 && video1.readyState >= 2) {
         await pose1.send({image: video1});
     }
@@ -332,24 +325,23 @@ async function processAI() {
 
 function drawLoop() {
     if (video1Ready && video2Ready) {
-        processAI(); // Trigger detection
-        drawFrame(); // Draw results
+        processAI(); 
+        drawFrame(); 
     }
     animationFrameId = requestAnimationFrame(drawLoop);
 }
 
-// Helper to draw chain: Wrist->Elbow->Shoulder->Hip->Knee->Ankle
-function drawSkeletonChain(ctx, landmarks, offsetX, offsetY, scale, videoScaleX, videoScaleY) {
+// Updated Helper: Accepts 'color' parameter
+function drawSkeletonChain(ctx, landmarks, color, offsetX, offsetY, scale, videoScaleX, videoScaleY) {
     if (!landmarks) return;
 
-    // Indices for specific body line requested
     const leftChain = [15, 13, 11, 23, 25, 27];
     const rightChain = [16, 14, 12, 24, 26, 28];
 
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.strokeStyle = "white"; // Bone color
+    ctx.strokeStyle = color; // Uses specific color
 
     const drawChain = (indices) => {
         ctx.beginPath();
@@ -358,16 +350,12 @@ function drawSkeletonChain(ctx, landmarks, offsetX, offsetY, scale, videoScaleX,
         for (let i of indices) {
             const lm = landmarks[i];
             if (lm && lm.visibility > 0.5) {
-                // Video Coords
                 let x = lm.x * videoScaleX;
                 let y = lm.y * videoScaleY;
 
-                // Apply Viewport Transforms (Zoom/Pan)
                 if (scale !== 1.0 || offsetX !== 0 || offsetY !== 0) {
                      const centerX = videoCanvas.width / 2;
                      const centerY = videoCanvas.height / 2;
-                     
-                     // Center origin, scale, pan, uncenter
                      let centeredX = x - centerX;
                      let centeredY = y - centerY;
                      x = (centeredX * scale) + centerX + offsetX;
@@ -400,9 +388,9 @@ function drawFrame() {
     // --- Layer 1: Video 1 (Reference) ---
     ctx.drawImage(video1, 0, 0, videoCanvas.width, videoCanvas.height);
     
-    // Draw Skeleton 1 (Reference - No pan/zoom)
+    // Draw Skeleton 1: WHITE
     if (analyze1 && results1 && results1.poseLandmarks) {
-        drawSkeletonChain(ctx, results1.poseLandmarks, 0, 0, 1.0, videoCanvas.width, videoCanvas.height);
+        drawSkeletonChain(ctx, results1.poseLandmarks, 'white', 0, 0, 1.0, videoCanvas.width, videoCanvas.height);
     }
 
     // --- Layer 2: Video 2 (Attempt) ---
@@ -412,7 +400,6 @@ function drawFrame() {
     const centerX = videoCanvas.width / 2;
     const centerY = videoCanvas.height / 2;
     
-    // Apply Transform for Video 2 image
     ctx.translate(centerX + currentOffsetX, centerY + currentOffsetY);
     ctx.scale(currentScale, currentScale);
     ctx.translate(-centerX, -centerY);
@@ -420,11 +407,12 @@ function drawFrame() {
     ctx.drawImage(video2, 0, 0, videoCanvas.width, videoCanvas.height);
     ctx.restore();
 
-    // Draw Skeleton 2 (Attempt - Matches pan/zoom)
+    // Draw Skeleton 2: YELLOW (#FFFF00)
     if (analyze2 && results2 && results2.poseLandmarks) {
         drawSkeletonChain(
             ctx, 
             results2.poseLandmarks, 
+            '#FFFF00', // Yellow
             currentOffsetX, 
             currentOffsetY, 
             currentScale,
