@@ -8,7 +8,7 @@ const aiLoader = document.getElementById('aiLoader');
 // Controls
 const opacitySlider = document.getElementById('opacitySlider');
 
-// Video 1
+// Video 1 Inputs
 const timeSlider1 = document.getElementById('timeSlider1');
 const timeValue1 = document.getElementById('timeValue1');
 const playPauseButton1 = document.getElementById('playPauseButton1');
@@ -17,7 +17,7 @@ const setStart1 = document.getElementById('setStart1');
 const setEnd1 = document.getElementById('setEnd1');
 const boneBtn1 = document.getElementById('boneBtn1');
 
-// Video 2
+// Video 2 Inputs
 const timeSlider2 = document.getElementById('timeSlider2');
 const timeValue2 = document.getElementById('timeValue2');
 const playPauseButton2 = document.getElementById('playPauseButton2');
@@ -25,17 +25,13 @@ const moveV2Btn = document.getElementById('moveV2Btn');
 const setStart2 = document.getElementById('setStart2');
 const setEnd2 = document.getElementById('setEnd2');
 const boneBtn2 = document.getElementById('boneBtn2');
-const resetPositionScaleButton = document.getElementById('resetPositionScaleButton');
 
 // Annotations
 const drawBtn = document.getElementById('drawBtn');
 const textBtn = document.getElementById('textBtn');
 const undoBtn = document.getElementById('undoBtn');
-const colorPalette = document.getElementById('colorPalette');
-const toolStatus = document.getElementById('toolStatus');
-
-const statusText = document.getElementById('status');
-const uploadStatus = document.getElementById('uploadStatus');
+const annotationToolbar = document.getElementById('annotationToolbar');
+const toolStatus = document.getElementById('status');
 
 // --- State ---
 let video1Ready = false;
@@ -43,12 +39,12 @@ let video2Ready = false;
 let isPlaying1 = false;
 let isPlaying2 = false;
 
-// Transforms (Independent for each video)
+// Transforms
 let transform1 = { scale: 1.0, offsetX: 0, offsetY: 0 };
 let transform2 = { scale: 1.0, offsetX: 0, offsetY: 0 };
 
 // Trimming
-let trim1 = { start: 0, end: null }; // end is duration
+let trim1 = { start: 0, end: null };
 let trim2 = { start: 0, end: null };
 
 // Interaction Modes
@@ -60,9 +56,13 @@ const MODE_TEXT = 'text';
 let currentMode = MODE_NONE;
 
 // Annotations
-let annotations = []; // { type: 'line'|'text', color, points: [] or content/x/y }
+let annotations = []; // { type: 'line'|'text', color, points: [] or content/x/y/size }
 let currentStroke = null;
 let selectedColor = '#ff3b30';
+
+// Text Interaction State
+let activeTextIndex = -1; // Index of text being manipulated
+let initialTextScale = 1;
 
 // AI State
 let analyze1 = false, analyze2 = false;
@@ -70,11 +70,11 @@ let pose1 = null, pose2 = null;
 let results1 = null, results2 = null;
 let loading1 = false, loading2 = false;
 
-// Touch/Transform Cache
-let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance: 0 };
+// Touch Cache
+let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance: 0, fontSize: 20 };
 let isDragging = false;
 
-// --- Setup Event Listeners ---
+// --- Event Listeners ---
 
 // File Uploads
 document.getElementById('fileInput1').addEventListener('change', (e) => loadVideo(e, video1, 1));
@@ -88,48 +88,42 @@ video2.addEventListener('timeupdate', () => handleTimeUpdate(video2, 2));
 video1.addEventListener('ended', () => { isPlaying1 = false; playPauseButton1.textContent = '▶'; });
 video2.addEventListener('ended', () => { isPlaying2 = false; playPauseButton2.textContent = '▶'; });
 
-// Playback Controls
+// Controls
 playPauseButton1.addEventListener('click', () => togglePlayPause(video1, playPauseButton1));
 playPauseButton2.addEventListener('click', () => togglePlayPause(video2, playPauseButton2));
 document.getElementById('playAllButton').addEventListener('click', playAllVideos);
 document.getElementById('pauseAllButton').addEventListener('click', pauseAllVideos);
 document.getElementById('syncAllStartsButton').addEventListener('click', syncAllStarts);
 
-document.getElementById('restartButton1').addEventListener('click', () => { video1.currentTime = trim1.start; });
-document.getElementById('restartButton2').addEventListener('click', () => { video2.currentTime = trim2.start; });
+document.getElementById('restartButton1').addEventListener('click', () => { if(video1Ready) video1.currentTime = trim1.start; });
+document.getElementById('restartButton2').addEventListener('click', () => { if(video2Ready) video2.currentTime = trim2.start; });
 
-// Sliders
 opacitySlider.addEventListener('input', drawFrame);
-timeSlider1.addEventListener('input', () => { video1.currentTime = parseFloat(timeSlider1.value); drawFrame(); });
-timeSlider2.addEventListener('input', () => { video2.currentTime = parseFloat(timeSlider2.value); drawFrame(); });
+timeSlider1.addEventListener('input', () => { if(video1Ready) { video1.currentTime = parseFloat(timeSlider1.value); drawFrame(); } });
+timeSlider2.addEventListener('input', () => { if(video2Ready) { video2.currentTime = parseFloat(timeSlider2.value); drawFrame(); } });
 
-// Transform Controls
+// Modes
 moveV1Btn.addEventListener('click', () => setMode(MODE_MOVE_V1));
 moveV2Btn.addEventListener('click', () => setMode(MODE_MOVE_V2));
-resetPositionScaleButton.addEventListener('click', () => {
-    transform2 = { scale: 1.0, offsetX: 0, offsetY: 0 };
-    drawFrame();
-});
-
-// Trimming Controls
-setStart1.addEventListener('click', () => setTrimStart(1));
-setEnd1.addEventListener('click', () => setTrimEnd(1));
-setStart2.addEventListener('click', () => setTrimStart(2));
-setEnd2.addEventListener('click', () => setTrimEnd(2));
-
-// AI Controls
-boneBtn1.addEventListener('click', () => toggleAI(1));
-boneBtn2.addEventListener('click', () => toggleAI(2));
-
-// Annotation Controls
 drawBtn.addEventListener('click', () => setMode(MODE_DRAW));
 textBtn.addEventListener('click', () => setMode(MODE_TEXT));
+
 undoBtn.addEventListener('click', () => {
     annotations.pop();
     drawFrame();
 });
 
-// Color Picker
+// Trims
+setStart1.addEventListener('click', () => setTrimStart(1));
+setEnd1.addEventListener('click', () => setTrimEnd(1));
+setStart2.addEventListener('click', () => setTrimStart(2));
+setEnd2.addEventListener('click', () => setTrimEnd(2));
+
+// AI
+boneBtn1.addEventListener('click', () => toggleAI(1));
+boneBtn2.addEventListener('click', () => toggleAI(2));
+
+// Colors
 document.querySelectorAll('.color-dot').forEach(dot => {
     dot.addEventListener('click', (e) => {
         document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
@@ -138,7 +132,7 @@ document.querySelectorAll('.color-dot').forEach(dot => {
     });
 });
 
-// Touch/Mouse Events on Canvas
+// Canvas Interaction
 videoCanvas.addEventListener('mousedown', handlePointerStart);
 videoCanvas.addEventListener('mousemove', handlePointerMove);
 videoCanvas.addEventListener('mouseup', handlePointerEnd);
@@ -146,36 +140,36 @@ videoCanvas.addEventListener('touchstart', handlePointerStart, { passive: false 
 videoCanvas.addEventListener('touchmove', handlePointerMove, { passive: false });
 videoCanvas.addEventListener('touchend', handlePointerEnd);
 
-// Resize
 window.addEventListener('resize', adjustCanvasSize);
 
-// --- Mode Management ---
+// --- Functions ---
 
 function setMode(mode) {
-    // If clicking same mode, toggle off
-    if (currentMode === mode) {
-        currentMode = MODE_NONE;
-    } else {
-        currentMode = mode;
-    }
+    if (currentMode === mode) currentMode = MODE_NONE;
+    else currentMode = mode;
 
-    // UI Updates
+    // Button states
     moveV1Btn.classList.toggle('active', currentMode === MODE_MOVE_V1);
     moveV2Btn.classList.toggle('active', currentMode === MODE_MOVE_V2);
     drawBtn.classList.toggle('active', currentMode === MODE_DRAW);
     textBtn.classList.toggle('active', currentMode === MODE_TEXT);
 
-    // Show/Hide Palette
+    // Toolbar visibility
     if (currentMode === MODE_DRAW || currentMode === MODE_TEXT) {
-        colorPalette.style.display = 'flex';
-        toolStatus.textContent = currentMode === MODE_DRAW ? "Sketching..." : "Tap to add text";
+        annotationToolbar.style.display = 'flex';
     } else {
-        colorPalette.style.display = 'none';
-        toolStatus.textContent = "";
+        annotationToolbar.style.display = 'none';
+    }
+
+    // Canvas touch-action: Allow page zoom only when mode is NONE
+    if (currentMode === MODE_NONE) {
+        videoCanvas.style.touchAction = 'auto';
+        toolStatus.textContent = "Ready";
+    } else {
+        videoCanvas.style.touchAction = 'none';
+        if (currentMode === MODE_TEXT) toolStatus.textContent = "Tap to add text, Drag to move, Pinch to resize";
     }
 }
-
-// --- Video Loading & Setup ---
 
 function loadVideo(event, videoElement, videoNum) {
     const file = event.target.files[0];
@@ -185,15 +179,14 @@ function loadVideo(event, videoElement, videoNum) {
         videoElement.load();
         
         document.getElementById(`fileName${videoNum}`).textContent = file.name;
-        
+
         if (videoNum === 1) { 
             video1Ready = false; trim1 = { start: 0, end: null }; analyze1 = false;
         } else { 
             video2Ready = false; trim2 = { start: 0, end: null }; analyze2 = false;
         }
-        pauseAllVideos();
-        ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
-        statusText.textContent = `Loading Video ${videoNum}...`;
+        
+        toolStatus.textContent = `Loading Video ${videoNum}...`;
     }
 }
 
@@ -204,124 +197,35 @@ function setupVideo(videoElement, videoNum) {
     const slider = (videoNum === 1) ? timeSlider1 : timeSlider2;
     slider.max = videoElement.duration;
     slider.value = 0;
-    
     updateSliderVisuals(videoNum);
 
-    if (video1Ready && video2Ready) {
-        uploadStatus.textContent = "Videos Loaded";
+    if (video1Ready || video2Ready) {
         adjustCanvasSize();
         requestAnimationFrame(drawLoop);
     }
 }
 
 function adjustCanvasSize() {
-    if (!video1Ready || !video2Ready) return;
-    const containerWidth = document.querySelector('.container').clientWidth - 20; 
-    const aspectRatio = video1.videoWidth / video1.videoHeight;
-    videoCanvas.width = containerWidth;
-    videoCanvas.height = containerWidth / aspectRatio;
+    const container = document.querySelector('.container');
+    if (!container) return;
+    
+    let aspect = 16/9;
+    if (video1Ready && video1.videoWidth) aspect = video1.videoWidth / video1.videoHeight;
+    else if (video2Ready && video2.videoWidth) aspect = video2.videoWidth / video2.videoHeight;
+
+    const w = container.clientWidth - 20;
+    videoCanvas.width = w;
+    videoCanvas.height = w / aspect;
     drawFrame();
 }
 
-// --- Trimming Logic ---
-
-function handleTimeUpdate(video, num) {
-    const slider = num === 1 ? timeSlider1 : timeSlider2;
-    const valSpan = num === 1 ? timeValue1 : timeValue2;
-    const trim = num === 1 ? trim1 : trim2;
-
-    // Loop logic
-    if (video.currentTime >= trim.end) {
-        video.currentTime = trim.start;
-        // If it wasn't playing, don't auto-play (prevents glitches when scrubbing)
-        if (num === 1 && !isPlaying1) video.pause();
-        if (num === 2 && !isPlaying2) video.pause();
-    }
-    
-    slider.value = video.currentTime;
-    valSpan.textContent = video.currentTime.toFixed(2) + 's';
-}
-
-function setTrimStart(num) {
-    const vid = num === 1 ? video1 : video2;
-    const trim = num === 1 ? trim1 : trim2;
-    trim.start = vid.currentTime;
-    if (trim.start >= trim.end) trim.start = 0; // Safety
-    updateSliderVisuals(num);
-    statusText.textContent = `V${num} Start set to ${trim.start.toFixed(2)}s`;
-}
-
-function setTrimEnd(num) {
-    const vid = num === 1 ? video1 : video2;
-    const trim = num === 1 ? trim1 : trim2;
-    trim.end = vid.currentTime;
-    if (trim.end <= trim.start) trim.end = vid.duration; // Safety
-    updateSliderVisuals(num);
-    statusText.textContent = `V${num} End set to ${trim.end.toFixed(2)}s`;
-}
-
-function updateSliderVisuals(num) {
-    const slider = num === 1 ? timeSlider1 : timeSlider2;
-    const trim = num === 1 ? trim1 : trim2;
-    const max = slider.max || 100;
-    
-    const startPct = (trim.start / max) * 100;
-    const endPct = (trim.end / max) * 100;
-    
-    // Create CSS gradient to show active range
-    // Gray (0 to start), Blue (start to end), Gray (end to 100)
-    slider.style.background = `linear-gradient(to right, 
-        #555 0%, 
-        #555 ${startPct}%, 
-        var(--primary-blue) ${startPct}%, 
-        var(--primary-blue) ${endPct}%, 
-        #555 ${endPct}%, 
-        #555 100%)`;
-}
-
-// --- Playback ---
-
-function togglePlayPause(video, btn) {
-    if (video.paused) {
-        video.play();
-        if(video === video1) isPlaying1 = true; else isPlaying2 = true;
-        btn.textContent = '⏸';
-    } else {
-        video.pause();
-        if(video === video1) isPlaying1 = false; else isPlaying2 = false;
-        btn.textContent = '▶';
-    }
-}
-
-function playAllVideos() {
-    if (video1Ready) togglePlayPause(video1, playPauseButton1);
-    if (video2Ready) togglePlayPause(video2, playPauseButton2);
-}
-
-function pauseAllVideos() {
-    video1.pause(); isPlaying1 = false; playPauseButton1.textContent = '▶';
-    video2.pause(); isPlaying2 = false; playPauseButton2.textContent = '▶';
-}
-
-function syncAllStarts() {
-    video1.currentTime = trim1.start;
-    video2.currentTime = trim2.start;
-    pauseAllVideos();
-    drawFrame();
-}
-
-// --- Touch/Pointer Logic (Unified) ---
+// --- Interaction Logic ---
 
 function getPointerPos(e) {
     const rect = videoCanvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-        clientX: clientX,
-        clientY: clientY
-    };
+    return { x: clientX - rect.left, y: clientY - rect.top, clientX, clientY };
 }
 
 function getDistance(touches) {
@@ -330,21 +234,57 @@ function getDistance(touches) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
-function handlePointerStart(e) {
-    if (e.target !== videoCanvas) return;
-    // Allow default browser zoom ONLY if we are NOT in a canvas interaction mode
-    // However, if we are in Draw/Move, we must prevent default to stop scrolling
-    if (currentMode !== MODE_NONE) {
-        e.preventDefault();
+function hitTestText(x, y) {
+    for (let i = annotations.length - 1; i >= 0; i--) {
+        const item = annotations[i];
+        if (item.type === 'text') {
+            ctx.font = `bold ${item.size}px Arial`;
+            const width = ctx.measureText(item.content).width;
+            const height = item.size; 
+            if (x >= item.x && x <= item.x + width && y >= item.y - height && y <= item.y) {
+                return i;
+            }
+        }
     }
+    return -1;
+}
 
+function handlePointerStart(e) {
+    if (currentMode === MODE_NONE) return; 
+    
+    e.preventDefault();
     const pos = getPointerPos(e);
     const touches = e.touches;
 
     if (currentMode === MODE_TEXT) {
+        activeTextIndex = hitTestText(pos.x, pos.y);
+        
+        if (activeTextIndex !== -1) {
+            isDragging = true;
+            const item = annotations[activeTextIndex];
+            
+            if (touches && touches.length === 2) {
+                initialTouchData.distance = getDistance(touches);
+                initialTouchData.fontSize = item.size;
+            } else {
+                initialTouchData.x = pos.clientX;
+                initialTouchData.y = pos.clientY;
+                initialTouchData.offsetX = item.x;
+                initialTouchData.offsetY = item.y;
+            }
+            return;
+        }
+
         const text = prompt("Enter text:");
         if (text) {
-            annotations.push({ type: 'text', content: text, x: pos.x, y: pos.y, color: selectedColor });
+            annotations.push({ 
+                type: 'text', 
+                content: text, 
+                x: pos.x, 
+                y: pos.y, 
+                color: selectedColor, 
+                size: 30 
+            });
             drawFrame();
         }
         return;
@@ -357,53 +297,68 @@ function handlePointerStart(e) {
         return;
     }
 
-    // Move/Scale Modes
     if (currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2) {
-        const activeTransform = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
+        if (!video1Ready && currentMode === MODE_MOVE_V1) return;
+        if (!video2Ready && currentMode === MODE_MOVE_V2) return;
+
+        const t = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
         
         if (touches && touches.length === 2) {
             isDragging = false;
             initialTouchData.distance = getDistance(touches);
-            initialTouchData.scale = activeTransform.scale;
+            initialTouchData.scale = t.scale;
         } else {
             isDragging = true;
             initialTouchData.x = pos.clientX;
             initialTouchData.y = pos.clientY;
-            initialTouchData.offsetX = activeTransform.offsetX;
-            initialTouchData.offsetY = activeTransform.offsetY;
+            initialTouchData.offsetX = t.offsetX;
+            initialTouchData.offsetY = t.offsetY;
         }
     }
 }
 
 function handlePointerMove(e) {
-    if (currentMode === MODE_NONE || e.target !== videoCanvas) return;
-    e.preventDefault(); // Stop scrolling when interacting
+    if (currentMode === MODE_NONE) return;
+    e.preventDefault();
 
     const pos = getPointerPos(e);
     const touches = e.touches;
 
-    if (currentMode === MODE_DRAW && isDragging) {
-        currentStroke.points.push({x: pos.x, y: pos.y});
-        drawFrame(); // Re-render to show line immediately
+    if (currentMode === MODE_TEXT && activeTextIndex !== -1) {
+        const item = annotations[activeTextIndex];
+
+        if (touches && touches.length === 2 && initialTouchData.distance > 0) {
+            const dist = getDistance(touches);
+            const scaleFactor = dist / initialTouchData.distance;
+            item.size = Math.max(10, initialTouchData.fontSize * scaleFactor);
+            drawFrame();
+        } else if (isDragging) {
+            const deltaX = pos.clientX - initialTouchData.x;
+            const deltaY = pos.clientY - initialTouchData.y;
+            item.x = initialTouchData.offsetX + deltaX;
+            item.y = initialTouchData.offsetY + deltaY;
+            drawFrame();
+        }
         return;
     }
 
-    if ((currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2)) {
-        const activeTransform = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
+    if (currentMode === MODE_DRAW && isDragging) {
+        currentStroke.points.push({x: pos.x, y: pos.y});
+        drawFrame();
+        return;
+    }
 
+    if (currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2) {
+        const t = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
         if (touches && touches.length === 2 && initialTouchData.distance > 0) {
-            // Pinch Zoom
             const dist = getDistance(touches);
-            const scaleFactor = dist / initialTouchData.distance;
-            let newScale = initialTouchData.scale * scaleFactor;
-            activeTransform.scale = Math.max(0.1, Math.min(5.0, newScale));
+            t.scale = Math.max(0.1, initialTouchData.scale * (dist / initialTouchData.distance));
             drawFrame();
         } else if (isDragging) {
-            // Pan
-            const deltaX = pos.clientX - initialTouchData.x;
-            const deltaY = pos.clientY - initialTouchData.y;
-            activeTransform.offsetX = initialTouchData.offsetX + deltaX;
-            activeTransform.offsetY = initialTouchData.offsetY + deltaY;
+            const dx = pos.clientX - initialTouchData.x;
+            const dy = pos.clientY - initialTouchData.y;
+            t.offsetX = initialTouchData.offsetX + dx;
+            t.offsetY = initialTouchData.offsetY + dy;
             drawFrame();
         }
     }
@@ -412,150 +367,178 @@ function handlePointerMove(e) {
 function handlePointerEnd(e) {
     isDragging = false;
     currentStroke = null;
+    activeTextIndex = -1;
     initialTouchData.distance = 0;
 }
 
-// --- Drawing & Rendering ---
-
 function drawLoop() {
-    if (video1Ready && video2Ready) {
-        processAI();
-        drawFrame();
-    }
+    processAI();
+    drawFrame();
     requestAnimationFrame(drawLoop);
 }
 
 function drawFrame() {
-    if (!video1Ready || !video2Ready) return;
-
     ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
     const centerX = videoCanvas.width / 2;
     const centerY = videoCanvas.height / 2;
 
-    // Helper to draw video with transform
-    const drawLayer = (vid, transform, opacity) => {
+    const drawLayer = (vid, t, alpha) => {
+        if (!vid || vid.readyState < 2) return;
         ctx.save();
-        ctx.globalAlpha = opacity;
-        ctx.translate(centerX + transform.offsetX, centerY + transform.offsetY);
-        ctx.scale(transform.scale, transform.scale);
+        ctx.globalAlpha = alpha;
+        ctx.translate(centerX + t.offsetX, centerY + t.offsetY);
+        ctx.scale(t.scale, t.scale);
         ctx.translate(-centerX, -centerY);
         ctx.drawImage(vid, 0, 0, videoCanvas.width, videoCanvas.height);
         ctx.restore();
     };
 
-    // 1. Draw Reference Video
-    drawLayer(video1, transform1, 1.0);
-    
-    // 2. Draw Reference AI Skeleton
-    if (analyze1 && results1 && results1.poseLandmarks) {
-        drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1);
+    if (video1Ready) {
+        drawLayer(video1, transform1, 1.0);
+        if (analyze1 && results1 && results1.poseLandmarks) {
+            drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1);
+        }
     }
 
-    // 3. Draw Attempt Video
-    drawLayer(video2, transform2, parseFloat(opacitySlider.value));
-
-    // 4. Draw Attempt AI Skeleton
-    if (analyze2 && results2 && results2.poseLandmarks) {
-        drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2);
+    if (video2Ready) {
+        drawLayer(video2, transform2, parseFloat(opacitySlider.value));
+        if (analyze2 && results2 && results2.poseLandmarks) {
+            drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2);
+        }
     }
 
-    // 5. Draw Annotations (Fixed Overlay)
-    drawAnnotations();
-}
-
-function drawAnnotations() {
     ctx.globalAlpha = 1.0;
     annotations.forEach(item => {
         ctx.fillStyle = item.color;
         ctx.strokeStyle = item.color;
         ctx.lineWidth = 3;
-        
+
         if (item.type === 'text') {
-            ctx.font = "bold 20px Arial";
+            ctx.font = `bold ${item.size}px Arial`;
             ctx.fillText(item.content, item.x, item.y);
         } else if (item.type === 'line') {
             ctx.beginPath();
-            if (item.points.length > 0) {
+            if(item.points.length > 0) {
                 ctx.moveTo(item.points[0].x, item.points[0].y);
-                for (let i = 1; i < item.points.length; i++) {
-                    ctx.lineTo(item.points[i].x, item.points[i].y);
-                }
+                for(let i=1; i<item.points.length; i++) ctx.lineTo(item.points[i].x, item.points[i].y);
             }
             ctx.stroke();
         }
     });
 }
 
-function drawSkeletonChain(ctx, landmarks, color, transform) {
-    const leftChain = [15, 13, 11, 23, 25, 27];
-    const rightChain = [16, 14, 12, 24, 26, 28];
-    const centerX = videoCanvas.width / 2;
-    const centerY = videoCanvas.height / 2;
-
+function drawSkeletonChain(ctx, landmarks, color, t) {
+    const chains = [[15,13,11,23,25,27], [16,14,12,24,26,28]];
+    const cx = videoCanvas.width/2;
+    const cy = videoCanvas.height/2;
+    
+    ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
-    ctx.strokeStyle = color;
 
-    const draw = (indices) => {
+    chains.forEach(indices => {
         ctx.beginPath();
         let first = true;
-        for (let i of indices) {
+        indices.forEach(i => {
             const lm = landmarks[i];
-            if (lm && lm.visibility > 0.5) {
-                // Map to Video Size
+            if(lm && lm.visibility > 0.5) {
                 let x = lm.x * videoCanvas.width;
                 let y = lm.y * videoCanvas.height;
-
-                // Apply Transforms MANUALLY to match video layer
-                let cx = x - centerX;
-                let cy = y - centerY;
-                x = (cx * transform.scale) + centerX + transform.offsetX;
-                y = (cy * transform.scale) + centerY + transform.offsetY;
-
-                if (first) { ctx.moveTo(x, y); first = false; }
-                else ctx.lineTo(x, y);
+                x = ((x - cx) * t.scale) + cx + t.offsetX;
+                y = ((y - cy) * t.scale) + cy + t.offsetY;
+                if(first) { ctx.moveTo(x,y); first=false; }
+                else ctx.lineTo(x,y);
             } else first = true;
-        }
+        });
         ctx.stroke();
-    };
-    draw(leftChain);
-    draw(rightChain);
+    });
 }
 
-// --- AI Logic (Simplified for brevity) ---
+function handleTimeUpdate(vid, num) {
+    const slider = num===1 ? timeSlider1 : timeSlider2;
+    const val = num===1 ? timeValue1 : timeValue2;
+    const trim = num===1 ? trim1 : trim2;
+    const isPlaying = num===1 ? isPlaying1 : isPlaying2;
+
+    if (vid.currentTime >= trim.end) {
+        vid.currentTime = trim.start;
+        if (!isPlaying) vid.pause(); 
+    }
+    slider.value = vid.currentTime;
+    val.textContent = vid.currentTime.toFixed(2)+'s';
+}
+
+function updateSliderVisuals(num) {
+    const slider = num===1 ? timeSlider1 : timeSlider2;
+    const trim = num===1 ? trim1 : trim2;
+    const max = slider.max || 100;
+    const s = (trim.start/max)*100;
+    const e = (trim.end/max)*100;
+    slider.style.background = `linear-gradient(to right, #555 0%, #555 ${s}%, var(--primary-blue) ${s}%, var(--primary-blue) ${e}%, #555 ${e}%, #555 100%)`;
+}
+
+function setTrimStart(num) {
+    const v = num===1 ? video1 : video2;
+    const t = num===1 ? trim1 : trim2;
+    t.start = v.currentTime;
+    if(t.start >= t.end) t.start = 0;
+    updateSliderVisuals(num);
+}
+function setTrimEnd(num) {
+    const v = num===1 ? video1 : video2;
+    const t = num===1 ? trim1 : trim2;
+    t.end = v.currentTime;
+    if(t.end <= t.start) t.end = v.duration;
+    updateSliderVisuals(num);
+}
+
+function togglePlayPause(v, btn) {
+    if(!v.readyState) return;
+    if(v.paused) { v.play(); if(v===video1) isPlaying1=true; else isPlaying2=true; btn.textContent='⏸'; }
+    else { v.pause(); if(v===video1) isPlaying1=false; else isPlaying2=false; btn.textContent='▶'; }
+}
+
+function playAllVideos() {
+    if(video1Ready) togglePlayPause(video1, playPauseButton1);
+    if(video2Ready) togglePlayPause(video2, playPauseButton2);
+}
+function pauseAllVideos() {
+    if(video1Ready) { video1.pause(); isPlaying1=false; playPauseButton1.textContent='▶'; }
+    if(video2Ready) { video2.pause(); isPlaying2=false; playPauseButton2.textContent='▶'; }
+}
+function syncAllStarts() {
+    if(video1Ready) video1.currentTime = trim1.start;
+    if(video2Ready) video2.currentTime = trim2.start;
+    pauseAllVideos();
+    drawFrame();
+}
+
 function createPoseModel(cb) {
-    const pose = new Pose({locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-    pose.setOptions({modelComplexity: 1, smoothLandmarks: true});
-    pose.onResults(cb);
-    return pose;
+    const p = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+    p.setOptions({modelComplexity: 1, smoothLandmarks: true});
+    p.onResults(cb);
+    return p;
 }
-
 async function toggleAI(num) {
-    const isV1 = num === 1;
+    const isV1 = num===1;
     const btn = isV1 ? boneBtn1 : boneBtn2;
     const isActive = isV1 ? analyze1 : analyze2;
+    const vid = isV1 ? video1 : video2;
+    if(!vid.readyState) return;
 
-    if (isActive) {
-        if(isV1) { analyze1 = false; results1 = null; } else { analyze2 = false; results2 = null; }
+    if(isActive) {
+        if(isV1) { analyze1=false; results1=null; } else { analyze2=false; results2=null; }
         btn.classList.remove('active');
     } else {
-        if (!video1Ready) return;
         btn.classList.add('loading');
-        aiLoader.style.display = 'block';
         setTimeout(async () => {
-            if(isV1) {
-                if(!pose1) pose1 = createPoseModel(r => results1 = r);
-                loading1 = true; await pose1.send({image: video1}); analyze1 = true; loading1 = false;
-            } else {
-                if(!pose2) pose2 = createPoseModel(r => results2 = r);
-                loading2 = true; await pose2.send({image: video2}); analyze2 = true; loading2 = false;
-            }
-            btn.classList.remove('loading'); btn.classList.add('active'); aiLoader.style.display = 'none';
+            if(isV1) { if(!pose1) pose1=createPoseModel(r=>results1=r); loading1=true; await pose1.send({image:video1}); analyze1=true; loading1=false; }
+            else { if(!pose2) pose2=createPoseModel(r=>results2=r); loading2=true; await pose2.send({image:video2}); analyze2=true; loading2=false; }
+            btn.classList.remove('loading'); btn.classList.add('active');
         }, 50);
     }
 }
-
 async function processAI() {
-    if (analyze1 && pose1 && !loading1) await pose1.send({image: video1});
-    if (analyze2 && pose2 && !loading2) await pose2.send({image: video2});
+    if(analyze1 && pose1 && !loading1) await pose1.send({image:video1});
+    if(analyze2 && pose2 && !loading2) await pose2.send({image:video2});
 }

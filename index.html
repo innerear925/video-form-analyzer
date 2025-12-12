@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Feature 6: Removed maximum-scale and user-scalable=no to allow Page Zoom -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FormCheck</title>
     
@@ -26,16 +25,20 @@
             --shadow-color: rgba(0, 0, 0, 0.4);
         }
 
+        /* 2. Unified Font to Arial */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: Arial, sans-serif;
             margin: 0;
-            padding: 5px;
+            padding: 8px;
             background-color: var(--dark-background);
             color: var(--text-color-light);
             line-height: 1.4;
             font-size: 14px;
-            /* Prevent pull-to-refresh on mobile to make drawing easier */
-            overscroll-behavior: none; 
+        }
+
+        /* Ensure controls inherit the font */
+        button, input, select, textarea {
+            font-family: inherit;
         }
 
         .container {
@@ -43,103 +46,77 @@
             margin: 0 auto;
             background-color: var(--medium-dark-background);
             padding: 10px;
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: 0 1px 3px var(--shadow-color);
         }
 
         h1 {
             text-align: center;
             color: var(--primary-blue);
-            margin: 0 0 10px 0;
-            font-size: 1.4em;
+            margin: 5px 0 15px 0;
+            font-size: 2.1em;
+            font-weight: 800;
             letter-spacing: 0.05em;
         }
 
-        /* Upload Section */
+        /* File Upload Inputs - Compact */
         .upload-section {
             background: var(--light-card-background);
             padding: 8px;
-            border-radius: 6px;
+            border-radius: 8px;
             margin-bottom: 8px;
-            font-size: 0.9em;
             display: flex;
-            flex-direction: column;
-            gap: 8px;
+            gap: 5px;
         }
-        
-        .upload-item label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 4px;
-            font-size: 0.9em;
-            color: var(--text-color-medium);
-        }
-
         .file-input-wrapper {
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
+            flex: 1;
+            position: relative;
             overflow: hidden;
             background-color: #444;
+            border-radius: 6px;
+            height: 30px;
+            border: 1px solid var(--border-color);
         }
-
-        .file-input-wrapper input[type="file"] { display: none; }
-
-        .file-input-wrapper .custom-file-button {
-            background-color: var(--primary-blue);
-            color: white;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 4px;
+        .file-input-wrapper input[type="file"] { 
+            position: absolute; 
+            font-size: 100px; 
+            opacity: 0; 
+            right: 0; 
+            top: 0; 
             cursor: pointer;
-            font-size: 0.9em;
-            font-weight: bold;
-            flex-shrink: 0;
-            transition: background-color 0.2s;
         }
-
-        .file-input-wrapper .file-name {
-            flex-grow: 1;
-            padding: 0 10px;
-            color: var(--text-color-light);
+        .file-input-wrapper span {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 0.85em;
+            color: #ccc;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-size: 0.9em;
-        }
-
-        #uploadStatus {
-            width: 100%;
-            text-align: center;
-            margin: 5px 0 0 0;
-            color: var(--text-color-medium);
-            font-size: 0.8em;
+            padding: 0 5px;
         }
 
         /* Canvas */
         .video-output {
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             text-align: center;
             position: relative;
         }
-        
         canvas {
             display: block;
             margin: 0 auto;
             background-color: #000;
             max-width: 100%;
-            border-radius: 4px;
-            /* Feature 6: Keep touch-action none ON THE CANVAS so drawing works, 
-               but the rest of the page can zoom */
-            touch-action: none; 
+            border-radius: 6px;
+            touch-action: auto; 
             border: 2px solid var(--border-color);
         }
 
         #aiLoader {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(0,0,0,0.7);
             color: white;
@@ -150,204 +127,148 @@
             pointer-events: none;
         }
 
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
+        /* Controls Structure */
         .control-group {
             background-color: var(--light-card-background);
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 8px 12px;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
         }
 
-        .header-row {
+        .tools-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
-
-        .header-row h3 {
+        .tools-header h3 {
             margin: 0;
             font-size: 1em;
             color: var(--text-color-light);
-            font-weight: 600;
+        }
+        .tool-buttons {
+            display: flex;
+            gap: 6px;
         }
 
-        .header-row span {
-            font-family: monospace;
-            font-size: 0.9em;
+        .video-row-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .video-label {
+            font-weight: 600;
+            font-size: 1em;
+            color: var(--text-color-light);
+            margin-right: auto; 
+            min-width: 60px;
+        }
+        .time-display {
+            /* Removed monospace to unify font */
             color: var(--primary-blue);
             font-weight: bold;
-            min-width: 45px;
-            text-align: right;
+            margin-left: auto;
+            font-size: 0.9em;
         }
 
-        /* Standard Icon Buttons */
+        /* Buttons */
         .icon-btn {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             padding: 0;
             background-color: var(--primary-blue);
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 1.1em;
+            font-size: 1.2em;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            color: white;
             transition: background 0.2s;
+        }
+        
+        .icon-btn.flat-icon {
             color: transparent;
             text-shadow: 0 0 0 white;
         }
-        
+
         .icon-btn:hover { background-color: var(--primary-blue-hover); }
-        .icon-btn.active { background-color: var(--active-green); box-shadow: 0 0 5px var(--active-green); }
+        .icon-btn:active { transform: translateY(1px); }
+        .icon-btn.active { background-color: var(--active-green); box-shadow: 0 0 4px var(--active-green); }
         .icon-btn.loading { background-color: #ffea00; cursor: wait; }
 
-        /* Small text/trim buttons */
         .trim-btn {
-            width: 28px;
-            height: 28px;
-            font-size: 0.9em;
-            font-weight: bold;
-            text-shadow: none;
-            color: white;
             background-color: #555;
-        }
-        .trim-btn:active { background-color: var(--trim-orange); }
-
-        .header-button-group {
-            display: flex;
-            gap: 6px;
-            align-items: center;
+            font-weight: bold;
+            font-size: 1.1em;
+            /* Removed monospace to unify font */
         }
 
-        /* Slider Styles */
+        /* Sliders */
         input[type="range"] {
             display: block;
             width: 100%;
-            margin: 5px 0 10px 0;
-            height: 20px;
+            height: 12px;
             cursor: pointer;
             -webkit-appearance: none;
-            appearance: none;
-            background: transparent; /* Track handled by JS gradient */
-            border-radius: 5px;
-            position: relative;
-            z-index: 2;
+            background: transparent;
+            margin-top: 5px;
         }
-        
-        /* Custom track background for visual trim range */
-        .slider-container {
-            position: relative;
-            height: 20px;
-            background: #444;
-            border-radius: 5px;
-            margin: 5px 0 10px 0;
-            overflow: hidden;
+        input[type="range"]::-webkit-slider-runnable-track {
+            height: 12px;
+            border-radius: 6px;
         }
-        .slider-fill {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            width: 100%; /* JS will adjust */
-            background: #666; /* Trimmed out area color */
-            pointer-events: none;
-        }
-        .slider-active-range {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            background: var(--dark-background); /* Active area */
-            pointer-events: none;
-        }
-
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
             height: 20px;
+            width: 20px;
             border-radius: 50%;
-            background: var(--primary-blue);
-            cursor: pointer;
-            border: 2px solid white;
-            box-shadow: 0 0 2px rgba(0,0,0,0.5);
-            margin-top: 0;
+            background: white; 
+            border: 2px solid var(--primary-blue);
+            margin-top: -4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
-        /* Global/Toolbar Button Group */
-        .global-button-group {
+        /* Global Controls */
+        .global-controls {
             display: flex;
-            justify-content: space-between; 
-            gap: 8px;
-            margin-top: 5px;
-            width: 100%;
+            gap: 10px;
+            margin-top: 10px;
         }
-
-        .global-button-group button {
-            flex: 1; 
-            max-width: none; 
-            height: 50px;
-            padding: 0;
-            background-color: var(--primary-blue);
+        .global-btn {
+            flex: 1;
+            height: 60px;
+            border-radius: 10px;
             border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.4em;
+            background-color: var(--primary-blue);
+            color: white;
+            font-size: 1.8em;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
-            box-shadow: 0 3px 6px var(--shadow-color);
-            color: transparent;
-            text-shadow: 0 0 0 white;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        
-        .global-button-group button:hover { opacity: 0.9; }
-        .global-button-group button.active { background-color: var(--active-green); }
+        .global-btn:active { background-color: var(--primary-blue-hover); transform: translateY(2px); }
 
-        /* Annotation Toolbar */
         .annotation-toolbar {
-            display: flex;
-            gap: 8px;
+            display: none; 
+            justify-content: center;
+            gap: 10px;
             margin-top: 5px;
             padding-top: 5px;
-            border-top: 1px solid var(--border-color);
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .color-palette {
-            display: none; /* Hidden until Draw/Text is active */
-            gap: 5px;
+            border-top: 1px solid #555;
         }
         .color-dot {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid white;
-            cursor: pointer;
+            width: 24px; height: 24px; border-radius: 50%; border: 2px solid #555; cursor: pointer;
         }
-        .color-dot.selected { transform: scale(1.2); border-color: #000; box-shadow: 0 0 5px white;}
-
-        #status {
-            text-align: center;
-            margin: 10px 0 0 0;
-            color: var(--text-color-medium);
-            font-size: 0.85em;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .color-dot.selected { border-color: white; transform: scale(1.2); }
 
         .sr-only { display: none; }
-        #video1, #video2 { display: none; }
     </style>
 </head>
 <body>
@@ -355,23 +276,14 @@
         <h1>FormCheck</h1>
 
         <div class="upload-section">
-            <div class="upload-item">
-                <label>Reference Video</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput1" accept="video/*">
-                    <button class="custom-file-button" onclick="document.getElementById('fileInput1').click()">Choose File</button>
-                    <span class="file-name" id="fileName1">No file chosen</span>
-                </div>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput1" accept="video/*">
+                <span id="fileName1">Upload Video 1...</span>
             </div>
-            <div class="upload-item">
-                <label>Your Attempt Video</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput2" accept="video/*">
-                    <button class="custom-file-button" onclick="document.getElementById('fileInput2').click()">Choose File</button>
-                    <span class="file-name" id="fileName2">No file chosen</span>
-                </div>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput2" accept="video/*">
+                <span id="fileName2">Upload Video 2...</span>
             </div>
-            <p id="uploadStatus">Upload two videos.</p>
         </div>
 
         <div class="video-output">
@@ -379,90 +291,67 @@
             <div id="aiLoader">Initializing AI...</div>
         </div>
 
-        <div class="controls">
-            
-            <div class="control-group">
-                <div class="header-row">
-                    <h3>Overlay Opacity</h3>
-                    <span></span> 
-                </div>
-                <label for="opacitySlider" class="sr-only">Video 2 Opacity:</label>
-                <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5">
-            </div>
-
-            <!-- Video 1 Section -->
-            <div class="control-group">
-                <div class="header-row">
-                    <h3>Reference</h3>
-                    <div class="header-button-group">
-                        <button id="moveV1Btn" class="icon-btn" aria-label="Move/Resize Video 1">✥</button>
-                        <button id="playPauseButton1" class="icon-btn" aria-label="Play/Pause">▶</button>
-                        <button id="restartButton1" class="icon-btn" aria-label="Restart">↺</button>
-                        <button id="boneBtn1" class="icon-btn bone-btn" aria-label="Analyze Video 1">🦴</button>
-                    </div>
-                    <span id="timeValue1">0.00s</span>
-                </div>
-                <div class="header-button-group" style="margin-bottom: 5px;">
-                     <!-- Feature 2: Trimming Buttons -->
-                    <button id="setStart1" class="icon-btn trim-btn">[</button>
-                    <button id="setEnd1" class="icon-btn trim-btn">]</button>
-                    <label style="font-size:0.8em; color:#aaa;">Trim</label>
-                </div>
-                <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0">
-            </div>
-
-            <!-- Video 2 Section -->
-            <div class="control-group">
-                <div class="header-row">
-                    <h3>Your Attempt</h3>
-                    <div class="header-button-group">
-                         <!-- Feature 1: Move Button for Video 2 -->
-                        <button id="moveV2Btn" class="icon-btn" aria-label="Move/Resize Video 2">✥</button>
-                        <button id="playPauseButton2" class="icon-btn" aria-label="Play/Pause">▶</button>
-                        <button id="restartButton2" class="icon-btn" aria-label="Restart">↺</button>
-                        <button id="resetPositionScaleButton" class="icon-btn" aria-label="Reset Position">⛶</button>
-                        <button id="boneBtn2" class="icon-btn bone-btn" aria-label="Analyze Video 2">🦴</button>
-                    </div>
-                    <span id="timeValue2">0.00s</span>
-                </div>
-                <div class="header-button-group" style="margin-bottom: 5px;">
-                    <!-- Feature 2: Trimming Buttons -->
-                    <button id="setStart2" class="icon-btn trim-btn">[</button>
-                    <button id="setEnd2" class="icon-btn trim-btn">]</button>
-                    <label style="font-size:0.8em; color:#aaa;">Trim</label>
-                </div>
-                <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0">
-            </div>
-
-            <!-- Annotation Toolbar (Feature 3, 4, 5) -->
-            <div class="control-group">
-                <div class="global-button-group">
+        <!-- Tool & Opacity Card -->
+        <div class="control-group">
+            <div class="tools-header">
+                <h3>Overlay Opacity</h3>
+                <div class="tool-buttons">
                     <button id="drawBtn" class="icon-btn" aria-label="Draw">✏️</button>
                     <button id="textBtn" class="icon-btn" aria-label="Text">T</button>
                     <button id="undoBtn" class="icon-btn" aria-label="Undo">↩</button>
                 </div>
-                <div class="annotation-toolbar">
-                    <div id="colorPalette" class="color-palette">
-                        <div class="color-dot selected" style="background: #ff3b30;" data-color="#ff3b30"></div>
-                        <div class="color-dot" style="background: #4cd964;" data-color="#4cd964"></div>
-                        <div class="color-dot" style="background: #007aff;" data-color="#007aff"></div>
-                        <div class="color-dot" style="background: #ffcc00;" data-color="#ffcc00"></div>
-                        <div class="color-dot" style="background: #ffffff;" data-color="#ffffff"></div>
-                    </div>
-                    <span id="toolStatus" style="font-size: 0.9em; color: #888;">Select a tool</span>
-                </div>
             </div>
-
-            <!-- Global Controls -->
-            <div class="control-group" style="background:transparent; border:none; padding:0;">
-                <div class="global-button-group">
-                    <button id="syncAllStartsButton" aria-label="Sync Start">⏮</button>
-                    <button id="pauseAllButton" aria-label="Pause All">⏸</button>
-                    <button id="playAllButton" aria-label="Play All">▶▶</button>
-                </div>
-                <p id="status"></p>
+            <!-- Color Palette -->
+            <div id="annotationToolbar" class="annotation-toolbar">
+                <div class="color-dot selected" style="background: #ff3b30;" data-color="#ff3b30"></div>
+                <div class="color-dot" style="background: #4cd964;" data-color="#4cd964"></div>
+                <div class="color-dot" style="background: #007aff;" data-color="#007aff"></div>
+                <div class="color-dot" style="background: #ffcc00;" data-color="#ffcc00"></div>
+                <div class="color-dot" style="background: #ffffff;" data-color="#ffffff"></div>
             </div>
+            
+            <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5" style="background: linear-gradient(to right, #555, #555);">
+            <!-- 1. Removed the blue opacityCircle that was here -->
         </div>
+
+        <!-- Video 1 Controls -->
+        <div class="control-group">
+            <div class="video-row-header">
+                <span class="video-label">Video 1</span>
+                <button id="moveV1Btn" class="icon-btn flat-icon" aria-label="Move">✥</button>
+                <button id="playPauseButton1" class="icon-btn flat-icon" aria-label="Play">▶</button>
+                <button id="restartButton1" class="icon-btn flat-icon" aria-label="Restart">↺</button>
+                <button id="boneBtn1" class="icon-btn bone-btn" aria-label="Bone">🦴</button>
+                <button id="setStart1" class="icon-btn trim-btn" aria-label="Start Trim">[</button>
+                <button id="setEnd1" class="icon-btn trim-btn" aria-label="End Trim">]</button>
+                <span id="timeValue1" class="time-display">0.00s</span>
+            </div>
+            <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0" style="background: #444;">
+        </div>
+
+        <!-- Video 2 Controls -->
+        <div class="control-group">
+            <div class="video-row-header">
+                <span class="video-label">Video 2</span>
+                <button id="moveV2Btn" class="icon-btn flat-icon" aria-label="Move">✥</button>
+                <button id="playPauseButton2" class="icon-btn flat-icon" aria-label="Play">▶</button>
+                <button id="restartButton2" class="icon-btn flat-icon" aria-label="Restart">↺</button>
+                <button id="boneBtn2" class="icon-btn bone-btn" aria-label="Bone">🦴</button>
+                <button id="setStart2" class="icon-btn trim-btn" aria-label="Start Trim">[</button>
+                <button id="setEnd2" class="icon-btn trim-btn" aria-label="End Trim">]</button>
+                <span id="timeValue2" class="time-display">0.00s</span>
+            </div>
+            <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0" style="background: #444;">
+        </div>
+
+        <!-- Global Bottom Controls -->
+        <div class="global-controls">
+            <button id="syncAllStartsButton" class="global-btn flat-icon">⏮</button>
+            <button id="pauseAllButton" class="global-btn flat-icon">⏸</button>
+            <button id="playAllButton" class="global-btn flat-icon">▶▶</button>
+        </div>
+        
+        <p id="status"></p>
     </div>
 
     <!-- Hidden video elements -->
