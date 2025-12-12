@@ -76,6 +76,16 @@ let isDragging = false;
 
 // --- Event Listeners ---
 
+// 1. ZOOM RESTRICTION: Prevent pinch-zoom on the page unless touches start on the canvas
+document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) {
+        // If target is NOT the video canvas, block the pinch (prevent page zoom)
+        if (e.target.id !== 'videoCanvas') {
+            e.preventDefault();
+        }
+    }
+}, { passive: false });
+
 // File Uploads
 document.getElementById('fileInput1').addEventListener('change', (e) => loadVideo(e, video1, 1));
 document.getElementById('fileInput2').addEventListener('change', (e) => loadVideo(e, video2, 2));
@@ -163,10 +173,10 @@ function setMode(mode) {
 
     // Canvas touch-action: Allow page zoom only when mode is NONE
     if (currentMode === MODE_NONE) {
-        videoCanvas.style.touchAction = 'auto';
+        videoCanvas.style.touchAction = 'auto'; // Browser handles zoom
         toolStatus.textContent = "Ready";
     } else {
-        videoCanvas.style.touchAction = 'none';
+        videoCanvas.style.touchAction = 'none'; // We handle gesture
         if (currentMode === MODE_TEXT) toolStatus.textContent = "Tap to add text, Drag to move, Pinch to resize";
     }
 }
@@ -199,6 +209,7 @@ function setupVideo(videoElement, videoNum) {
     slider.value = 0;
     updateSliderVisuals(videoNum);
 
+    // Support Single Video: Adjust canvas and start loop even if only 1 is ready
     if (video1Ready || video2Ready) {
         adjustCanvasSize();
         requestAnimationFrame(drawLoop);
@@ -209,6 +220,7 @@ function adjustCanvasSize() {
     const container = document.querySelector('.container');
     if (!container) return;
     
+    // Default aspect 16:9 if no video, else match first available video
     let aspect = 16/9;
     if (video1Ready && video1.videoWidth) aspect = video1.videoWidth / video1.videoHeight;
     else if (video2Ready && video2.videoWidth) aspect = video2.videoWidth / video2.videoHeight;
@@ -234,13 +246,16 @@ function getDistance(touches) {
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+// Detect hit on text for selection
 function hitTestText(x, y) {
     for (let i = annotations.length - 1; i >= 0; i--) {
         const item = annotations[i];
         if (item.type === 'text') {
+            // Simple bounding box approximation
             ctx.font = `bold ${item.size}px Arial`;
             const width = ctx.measureText(item.content).width;
             const height = item.size; 
+            // Text drawn at x,y (baseline left). Box roughly:
             if (x >= item.x && x <= item.x + width && y >= item.y - height && y <= item.y) {
                 return i;
             }
@@ -250,13 +265,16 @@ function hitTestText(x, y) {
 }
 
 function handlePointerStart(e) {
+    // If Mode is NONE, let browser handle Zoom (don't prevent default)
     if (currentMode === MODE_NONE) return; 
     
     e.preventDefault();
     const pos = getPointerPos(e);
     const touches = e.touches;
 
+    // --- TEXT MODE ---
     if (currentMode === MODE_TEXT) {
+        // Check if hitting existing text
         activeTextIndex = hitTestText(pos.x, pos.y);
         
         if (activeTextIndex !== -1) {
@@ -264,9 +282,11 @@ function handlePointerStart(e) {
             const item = annotations[activeTextIndex];
             
             if (touches && touches.length === 2) {
+                // Pinch to resize text
                 initialTouchData.distance = getDistance(touches);
                 initialTouchData.fontSize = item.size;
             } else {
+                // Drag text
                 initialTouchData.x = pos.clientX;
                 initialTouchData.y = pos.clientY;
                 initialTouchData.offsetX = item.x;
@@ -275,6 +295,7 @@ function handlePointerStart(e) {
             return;
         }
 
+        // Add New Text
         const text = prompt("Enter text:");
         if (text) {
             annotations.push({ 
@@ -290,6 +311,7 @@ function handlePointerStart(e) {
         return;
     }
 
+    // --- DRAW MODE ---
     if (currentMode === MODE_DRAW) {
         isDragging = true;
         currentStroke = { type: 'line', color: selectedColor, points: [{x: pos.x, y: pos.y}] };
@@ -297,6 +319,7 @@ function handlePointerStart(e) {
         return;
     }
 
+    // --- MOVE VIDEO MODE ---
     if (currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2) {
         if (!video1Ready && currentMode === MODE_MOVE_V1) return;
         if (!video2Ready && currentMode === MODE_MOVE_V2) return;
@@ -324,15 +347,18 @@ function handlePointerMove(e) {
     const pos = getPointerPos(e);
     const touches = e.touches;
 
+    // --- TEXT MANIPULATION ---
     if (currentMode === MODE_TEXT && activeTextIndex !== -1) {
         const item = annotations[activeTextIndex];
 
         if (touches && touches.length === 2 && initialTouchData.distance > 0) {
+            // Resize Text
             const dist = getDistance(touches);
             const scaleFactor = dist / initialTouchData.distance;
             item.size = Math.max(10, initialTouchData.fontSize * scaleFactor);
             drawFrame();
         } else if (isDragging) {
+            // Move Text
             const deltaX = pos.clientX - initialTouchData.x;
             const deltaY = pos.clientY - initialTouchData.y;
             item.x = initialTouchData.offsetX + deltaX;
@@ -342,12 +368,14 @@ function handlePointerMove(e) {
         return;
     }
 
+    // --- DRAW ---
     if (currentMode === MODE_DRAW && isDragging) {
         currentStroke.points.push({x: pos.x, y: pos.y});
         drawFrame();
         return;
     }
 
+    // --- MOVE VIDEO ---
     if (currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2) {
         const t = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
         if (touches && touches.length === 2 && initialTouchData.distance > 0) {
@@ -371,6 +399,8 @@ function handlePointerEnd(e) {
     initialTouchData.distance = 0;
 }
 
+// --- Drawing Loop ---
+
 function drawLoop() {
     processAI();
     drawFrame();
@@ -378,6 +408,7 @@ function drawLoop() {
 }
 
 function drawFrame() {
+    // Clear
     ctx.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
     const centerX = videoCanvas.width / 2;
     const centerY = videoCanvas.height / 2;
@@ -393,6 +424,7 @@ function drawFrame() {
         ctx.restore();
     };
 
+    // Draw Video 1
     if (video1Ready) {
         drawLayer(video1, transform1, 1.0);
         if (analyze1 && results1 && results1.poseLandmarks) {
@@ -400,6 +432,7 @@ function drawFrame() {
         }
     }
 
+    // Draw Video 2
     if (video2Ready) {
         drawLayer(video2, transform2, parseFloat(opacitySlider.value));
         if (analyze2 && results2 && results2.poseLandmarks) {
@@ -407,6 +440,7 @@ function drawFrame() {
         }
     }
 
+    // Annotations
     ctx.globalAlpha = 1.0;
     annotations.forEach(item => {
         ctx.fillStyle = item.color;
@@ -444,6 +478,7 @@ function drawSkeletonChain(ctx, landmarks, color, t) {
             if(lm && lm.visibility > 0.5) {
                 let x = lm.x * videoCanvas.width;
                 let y = lm.y * videoCanvas.height;
+                // Transform
                 x = ((x - cx) * t.scale) + cx + t.offsetX;
                 y = ((y - cy) * t.scale) + cy + t.offsetY;
                 if(first) { ctx.moveTo(x,y); first=false; }
@@ -453,6 +488,8 @@ function drawSkeletonChain(ctx, landmarks, color, t) {
         ctx.stroke();
     });
 }
+
+// --- Utils (Trim, Playback) ---
 
 function handleTimeUpdate(vid, num) {
     const slider = num===1 ? timeSlider1 : timeSlider2;
@@ -513,6 +550,7 @@ function syncAllStarts() {
     drawFrame();
 }
 
+// --- AI (Minimal) ---
 function createPoseModel(cb) {
     const p = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
     p.setOptions({modelComplexity: 1, smoothLandmarks: true});

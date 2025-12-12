@@ -25,7 +25,11 @@
             --shadow-color: rgba(0, 0, 0, 0.4);
         }
 
-        /* 2. Unified Font to Arial */
+        /* Essential Fix: Hide the raw video elements so they don't appear at the bottom */
+        #video1, #video2 {
+            display: none;
+        }
+
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -36,7 +40,6 @@
             font-size: 14px;
         }
 
-        /* Ensure controls inherit the font */
         button, input, select, textarea {
             font-family: inherit;
         }
@@ -59,7 +62,6 @@
             letter-spacing: 0.05em;
         }
 
-        /* File Upload Inputs - Compact */
         .upload-section {
             background: var(--light-card-background);
             padding: 8px;
@@ -98,7 +100,6 @@
             padding: 0 5px;
         }
 
-        /* Canvas */
         .video-output {
             margin-bottom: 8px;
             text-align: center;
@@ -127,7 +128,6 @@
             pointer-events: none;
         }
 
-        /* Controls Structure */
         .control-group {
             background-color: var(--light-card-background);
             border: 1px solid var(--border-color);
@@ -166,14 +166,12 @@
             min-width: 60px;
         }
         .time-display {
-            /* Removed monospace to unify font */
             color: var(--primary-blue);
             font-weight: bold;
             margin-left: auto;
             font-size: 0.9em;
         }
 
-        /* Buttons */
         .icon-btn {
             width: 36px;
             height: 36px;
@@ -190,12 +188,10 @@
             color: white;
             transition: background 0.2s;
         }
-        
         .icon-btn.flat-icon {
             color: transparent;
             text-shadow: 0 0 0 white;
         }
-
         .icon-btn:hover { background-color: var(--primary-blue-hover); }
         .icon-btn:active { transform: translateY(1px); }
         .icon-btn.active { background-color: var(--active-green); box-shadow: 0 0 4px var(--active-green); }
@@ -205,10 +201,8 @@
             background-color: #555;
             font-weight: bold;
             font-size: 1.1em;
-            /* Removed monospace to unify font */
         }
 
-        /* Sliders */
         input[type="range"] {
             display: block;
             width: 100%;
@@ -233,7 +227,6 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
-        /* Global Controls */
         .global-controls {
             display: flex;
             gap: 10px;
@@ -291,7 +284,6 @@
             <div id="aiLoader">Initializing AI...</div>
         </div>
 
-        <!-- Tool & Opacity Card -->
         <div class="control-group">
             <div class="tools-header">
                 <h3>Overlay Opacity</h3>
@@ -301,7 +293,6 @@
                     <button id="undoBtn" class="icon-btn" aria-label="Undo">↩</button>
                 </div>
             </div>
-            <!-- Color Palette -->
             <div id="annotationToolbar" class="annotation-toolbar">
                 <div class="color-dot selected" style="background: #ff3b30;" data-color="#ff3b30"></div>
                 <div class="color-dot" style="background: #4cd964;" data-color="#4cd964"></div>
@@ -311,10 +302,8 @@
             </div>
             
             <input type="range" id="opacitySlider" min="0" max="1" step="0.01" value="0.5" style="background: linear-gradient(to right, #555, #555);">
-            <!-- 1. Removed the blue opacityCircle that was here -->
         </div>
 
-        <!-- Video 1 Controls -->
         <div class="control-group">
             <div class="video-row-header">
                 <span class="video-label">Video 1</span>
@@ -329,7 +318,6 @@
             <input type="range" id="timeSlider1" min="0" max="1" step="0.01" value="0" style="background: #444;">
         </div>
 
-        <!-- Video 2 Controls -->
         <div class="control-group">
             <div class="video-row-header">
                 <span class="video-label">Video 2</span>
@@ -344,7 +332,6 @@
             <input type="range" id="timeSlider2" min="0" max="1" step="0.01" value="0" style="background: #444;">
         </div>
 
-        <!-- Global Bottom Controls -->
         <div class="global-controls">
             <button id="syncAllStartsButton" class="global-btn flat-icon">⏮</button>
             <button id="pauseAllButton" class="global-btn flat-icon">⏸</button>
@@ -354,9 +341,9 @@
         <p id="status"></p>
     </div>
 
-    <!-- Hidden video elements -->
-    <video id="video1" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
-    <video id="video2" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
+    <!-- Hidden video elements with explicit style as backup -->
+    <video id="video1" style="display:none;" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
+    <video id="video2" style="display:none;" preload="auto" crossorigin="anonymous" playsinline webkit-playsinline></video>
 
     <script src="app.js"></script>
 </body>
