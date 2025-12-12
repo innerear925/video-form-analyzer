@@ -25,7 +25,6 @@
             --shadow-color: rgba(0, 0, 0, 0.4);
         }
 
-        /* Essential Fix: Hide the raw video elements so they don't appear at the bottom */
         #video1, #video2 {
             display: none;
         }
@@ -188,10 +187,13 @@
             color: white;
             transition: background 0.2s;
         }
+        
+        /* Forces emojis to appear as flat white icons */
         .icon-btn.flat-icon {
             color: transparent;
             text-shadow: 0 0 0 white;
         }
+
         .icon-btn:hover { background-color: var(--primary-blue-hover); }
         .icon-btn:active { transform: translateY(1px); }
         .icon-btn.active { background-color: var(--active-green); box-shadow: 0 0 4px var(--active-green); }
@@ -246,6 +248,12 @@
             cursor: pointer;
             box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
+        /* ADDED: Fix for orange pause button emoji */
+        .global-btn.flat-icon {
+            color: transparent;
+            text-shadow: 0 0 0 white;
+        }
+        
         .global-btn:active { background-color: var(--primary-blue-hover); transform: translateY(2px); }
 
         .annotation-toolbar {
