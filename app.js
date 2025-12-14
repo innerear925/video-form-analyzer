@@ -17,7 +17,6 @@ const moveV1Btn = document.getElementById('moveV1Btn');
 const setStart1 = document.getElementById('setStart1');
 const setEnd1 = document.getElementById('setEnd1');
 const boneBtn1 = document.getElementById('boneBtn1');
-const maskBtn1 = document.getElementById('maskBtn1'); // Silhouette
 
 // Video 2 Inputs
 const timeSlider2 = document.getElementById('timeSlider2');
@@ -27,7 +26,6 @@ const moveV2Btn = document.getElementById('moveV2Btn');
 const setStart2 = document.getElementById('setStart2');
 const setEnd2 = document.getElementById('setEnd2');
 const boneBtn2 = document.getElementById('boneBtn2');
-const maskBtn2 = document.getElementById('maskBtn2'); // Silhouette
 
 // Annotations
 const drawBtn = document.getElementById('drawBtn');
@@ -80,8 +78,7 @@ let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance:
 let isDragging = false;
 
 // AI State
-let showBone1 = false, showMask1 = false;
-let showBone2 = false, showMask2 = false;
+let analyze1 = false, analyze2 = false;
 let pose1 = null, pose2 = null;
 let results1 = null, results2 = null;
 let loading1 = false, loading2 = false;
@@ -129,10 +126,8 @@ setEnd1.addEventListener('click', () => setTrimEnd(1));
 setStart2.addEventListener('click', () => setTrimStart(2));
 setEnd2.addEventListener('click', () => setTrimEnd(2));
 
-boneBtn1.addEventListener('click', () => toggleAI(1, 'bone'));
-maskBtn1.addEventListener('click', () => toggleAI(1, 'mask'));
-boneBtn2.addEventListener('click', () => toggleAI(2, 'bone'));
-maskBtn2.addEventListener('click', () => toggleAI(2, 'mask'));
+boneBtn1.addEventListener('click', () => toggleAI(1));
+boneBtn2.addEventListener('click', () => toggleAI(2));
 
 document.querySelectorAll('.color-dot').forEach(dot => {
     dot.addEventListener('click', (e) => {
@@ -182,18 +177,20 @@ function loadVideo(event, videoElement, videoNum) {
     if (file) {
         if (videoElement.src && videoElement.src.startsWith('blob:')) URL.revokeObjectURL(videoElement.src);
         videoElement.src = URL.createObjectURL(file);
+        
+        // Critical for mobile playback sync:
+        videoElement.muted = true;
+        
         videoElement.load();
         
         document.getElementById(`fileName${videoNum}`).textContent = file.name;
 
         if (videoNum === 1) { 
-            video1Ready = false; trim1 = { start: 0, end: null };
-            showBone1 = false; showMask1 = false;
-            boneBtn1.classList.remove('active'); maskBtn1.classList.remove('active');
+            video1Ready = false; trim1 = { start: 0, end: null }; analyze1 = false;
+            boneBtn1.classList.remove('active');
         } else { 
-            video2Ready = false; trim2 = { start: 0, end: null }; 
-            showBone2 = false; showMask2 = false;
-            boneBtn2.classList.remove('active'); maskBtn2.classList.remove('active');
+            video2Ready = false; trim2 = { start: 0, end: null }; analyze2 = false;
+            boneBtn2.classList.remove('active');
         }
         toolStatus.textContent = `Loading Video ${videoNum}...`;
     }
@@ -475,17 +472,15 @@ function drawFrame() {
 
     if (video1Ready) {
         v1Info = drawLayer(video1, transform1, 1.0, false) || v1Info;
-        if ((showBone1 || showMask1) && results1) {
-            if (showBone1) drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1, v1Info);
-            if (showMask1) drawSegmentationMask(ctx, results1.segmentationMask, '#FFFF00', transform1, v1Info);
+        if (analyze1 && results1 && results1.poseLandmarks) {
+            drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1, v1Info);
         }
     }
 
     if (video2Ready) {
         v2Info = drawLayer(video2, transform2, parseFloat(opacitySlider.value), true) || v2Info;
-        if ((showBone2 || showMask2) && results2) {
-            if (showBone2) drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2, v2Info);
-            if (showMask2) drawSegmentationMask(ctx, results2.segmentationMask, '#FFFF00', transform2, v2Info);
+        if (analyze2 && results2 && results2.poseLandmarks) {
+            drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2, v2Info);
         }
     }
 
@@ -506,45 +501,6 @@ function drawFrame() {
             ctx.stroke();
         }
     });
-}
-
-// Draw Segmentation (Silhouette)
-// Note: MediaPipe mask is an ImageBitmap. We draw it to a temp canvas, color it, then draw back.
-// For performance in JS, simple globalCompositeOperation is best.
-const tempCanvas = document.createElement('canvas');
-const tempCtx = tempCanvas.getContext('2d');
-
-function drawSegmentationMask(ctx, mask, color, t, dims) {
-    if (!mask) return;
-    
-    // Resize temp canvas
-    if (tempCanvas.width !== dims.dw || tempCanvas.height !== dims.dh) {
-        tempCanvas.width = dims.dw;
-        tempCanvas.height = dims.dh;
-    }
-    
-    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-    
-    // Draw Mask
-    tempCtx.drawImage(mask, 0, 0, dims.dw, dims.dh);
-    
-    // Colorize: Source-In keeps the shape but changes color
-    tempCtx.globalCompositeOperation = 'source-in';
-    tempCtx.fillStyle = color;
-    tempCtx.fillRect(0, 0, dims.dw, dims.dh);
-    tempCtx.globalCompositeOperation = 'source-over'; // Reset
-
-    // Draw Result to Main Canvas with Transforms
-    const cx = videoCanvas.width/2;
-    const cy = videoCanvas.height/2;
-    
-    ctx.save();
-    ctx.globalAlpha = 0.5; // Semi-transparent overlay
-    ctx.translate(cx + t.offsetX, cy + t.offsetY);
-    ctx.scale(t.scale, t.scale);
-    ctx.translate(-cx, -cy);
-    ctx.drawImage(tempCanvas, dims.dx, dims.dy);
-    ctx.restore();
 }
 
 function drawSkeletonChain(ctx, landmarks, color, t, dims) {
@@ -639,15 +595,18 @@ function checkGlobalPlayState() {
 }
 
 function playAllVideos() {
-    if(video1Ready) togglePlayPause(video1, playPauseButton1);
-    if(video2Ready) togglePlayPause(video2, playPauseButton2);
+    // Better Promise handling for mobile sync
+    if(video1Ready) video1.play().then(() => { isPlaying1=true; playPauseButton1.textContent='⏸'; }).catch(e => console.log(e));
+    if(video2Ready) video2.play().then(() => { isPlaying2=true; playPauseButton2.textContent='⏸'; }).catch(e => console.log(e));
     checkGlobalPlayState();
 }
+
 function pauseAllVideos() {
     if(video1Ready) { video1.pause(); isPlaying1=false; playPauseButton1.textContent='▶'; }
     if(video2Ready) { video2.pause(); isPlaying2=false; playPauseButton2.textContent='▶'; }
     checkGlobalPlayState();
 }
+
 function syncAllStarts() {
     if(video1Ready) video1.currentTime = trim1.start;
     if(video2Ready) video2.currentTime = trim2.start;
@@ -657,63 +616,33 @@ function syncAllStarts() {
 
 function createPoseModel(cb) {
     const p = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
-    // Dynamically set options if mask is needed later? No, initial setup.
-    // If we want segmentation, we MUST enable it. It has performance cost.
-    // We will enable it by default but only use it if requested.
-    // Or better: Re-configure when needed to save battery.
-    p.setOptions({modelComplexity: 1, smoothLandmarks: true, enableSegmentation: true});
+    // Simplified model complexity to improve speed since we removed mask
+    p.setOptions({modelComplexity: 1, smoothLandmarks: true});
     p.onResults(cb);
     return p;
 }
 
-async function toggleAI(num, feature) {
-    // Feature: 'bone' or 'mask'
+async function toggleAI(num) {
     const isV1 = num===1;
-    const btn = feature === 'bone' ? (isV1?boneBtn1:boneBtn2) : (isV1?maskBtn1:maskBtn2);
-    
-    // Toggle State
-    if(isV1) {
-        if(feature === 'bone') showBone1 = !showBone1;
-        if(feature === 'mask') showMask1 = !showMask1;
-    } else {
-        if(feature === 'bone') showBone2 = !showBone2;
-        if(feature === 'mask') showMask2 = !showMask2;
-    }
+    const btn = isV1 ? boneBtn1 : boneBtn2;
+    const isActive = isV1 ? analyze1 : analyze2;
+    const vid = isV1 ? video1 : video2;
+    if(!vid.readyState) return;
 
-    // Update Button UI
-    if ((isV1 && ((feature==='bone' && showBone1) || (feature==='mask' && showMask1))) || 
-        (!isV1 && ((feature==='bone' && showBone2) || (feature==='mask' && showMask2)))) {
-        btn.classList.add('active');
-    } else {
+    if(isActive) {
+        if(isV1) { analyze1=false; results1=null; } else { analyze2=false; results2=null; }
         btn.classList.remove('active');
-    }
-
-    // Check if we need to load/run AI
-    const needAI = isV1 ? (showBone1 || showMask1) : (showBone2 || showMask2);
-    
-    if (needAI) {
-        // Init if not exists
-        if (isV1 && !pose1) {
-            btn.classList.add('loading');
-            aiLoader.style.display = 'block';
-            setTimeout(async () => {
-                pose1 = createPoseModel(r => results1 = r);
-                loading1 = true; await pose1.send({image:video1}); loading1 = false;
-                btn.classList.remove('loading'); aiLoader.style.display = 'none';
-            }, 50);
-        } else if (!isV1 && !pose2) {
-            btn.classList.add('loading');
-            aiLoader.style.display = 'block';
-            setTimeout(async () => {
-                pose2 = createPoseModel(r => results2 = r);
-                loading2 = true; await pose2.send({image:video2}); loading2 = false;
-                btn.classList.remove('loading'); aiLoader.style.display = 'none';
-            }, 50);
-        }
+    } else {
+        btn.classList.add('loading');
+        setTimeout(async () => {
+            if(isV1) { if(!pose1) pose1=createPoseModel(r=>results1=r); loading1=true; await pose1.send({image:video1}); analyze1=true; loading1=false; }
+            else { if(!pose2) pose2=createPoseModel(r=>results2=r); loading2=true; await pose2.send({image:video2}); analyze2=true; loading2=false; }
+            btn.classList.remove('loading'); btn.classList.add('active');
+        }, 50);
     }
 }
 
 async function processAI() {
-    if((showBone1 || showMask1) && pose1 && !loading1) await pose1.send({image:video1});
-    if((showBone2 || showMask2) && pose2 && !loading2) await pose2.send({image:video2});
+    if(analyze1 && pose1 && !loading1) await pose1.send({image:video1});
+    if(analyze2 && pose2 && !loading2) await pose2.send({image:video2});
 }

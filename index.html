@@ -73,7 +73,6 @@
             font-style: italic;
         }
 
-        /* Info Button */
         .info-btn {
             background: #555;
             color: white;
@@ -151,7 +150,7 @@
             background-color: var(--light-card-background);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            padding: 8px; 
+            padding: 8px;
             margin-bottom: 8px;
         }
 
@@ -161,13 +160,12 @@
         .tools-header h3 { margin: 0; font-size: 1em; color: var(--text-color-light); }
         .tool-buttons { display: flex; gap: 6px; }
 
-        /* Compact Video Row */
         .video-row-header {
             display: flex;
             align-items: center;
-            gap: 4px; 
+            gap: 4px;
             margin-bottom: 5px;
-            flex-wrap: nowrap; 
+            flex-wrap: nowrap;
         }
         .video-label {
             font-weight: 600;
@@ -226,9 +224,28 @@
         }
         .global-btn.flat-icon { color: transparent; text-shadow: 0 0 0 white; }
         
-        .global-btn.record-btn { background-color: #444; color: white; font-size: 2.2em; }
+        /* Save Button with Beta Tag */
+        .global-btn.record-btn { 
+            background-color: #444; 
+            color: white; 
+            font-size: 2.2em; 
+            position: relative; 
+        }
         .global-btn.record-btn.recording { background-color: var(--record-red); animation: pulse 1.5s infinite; }
         
+        .beta-tag {
+            position: absolute;
+            top: 2px;
+            right: 5px;
+            font-size: 0.35em;
+            background: #ffcc00;
+            color: #000;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: bold;
+            text-shadow: none;
+        }
+
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
 
         .annotation-toolbar {
@@ -237,7 +254,7 @@
         .color-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #555; cursor: pointer; }
         .color-dot.selected { border-color: white; transform: scale(1.2); }
 
-        /* Modal */
+        /* Modal / User Manual */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); z-index: 2000;
@@ -283,7 +300,6 @@
                 <li><strong>Move (✥):</strong> Click this icon for a video, then drag on the canvas to move it, or pinch to resize/zoom it.</li>
                 <li><strong>Trim ([ ]):</strong> Move the timeline slider to a point and click <strong>[</strong> to set Start or <strong>]</strong> to set End.</li>
                 <li><strong>Bone (🦴):</strong> Toggle AI Stick Figure overlay.</li>
-                <li><strong>Silhouette (👤):</strong> Toggle AI Body Mask (Yellow) overlay.</li>
             </ul>
 
             <h4>3. Annotation Tools</h4>
@@ -356,7 +372,6 @@
                 <button id="playPauseButton1" class="icon-btn flat-icon" aria-label="Play">▶</button>
                 <button id="restartButton1" class="icon-btn flat-icon" aria-label="Restart">↺</button>
                 <button id="boneBtn1" class="icon-btn bone-btn" aria-label="Bone">🦴</button>
-                <button id="maskBtn1" class="icon-btn flat-icon" aria-label="Silhouette">👤</button>
                 <button id="setStart1" class="icon-btn trim-btn" aria-label="Start Trim">[</button>
                 <button id="setEnd1" class="icon-btn trim-btn" aria-label="End Trim">]</button>
                 <span id="timeValue1" class="time-display">0.00s</span>
@@ -371,7 +386,6 @@
                 <button id="playPauseButton2" class="icon-btn flat-icon" aria-label="Play">▶</button>
                 <button id="restartButton2" class="icon-btn flat-icon" aria-label="Restart">↺</button>
                 <button id="boneBtn2" class="icon-btn bone-btn" aria-label="Bone">🦴</button>
-                <button id="maskBtn2" class="icon-btn flat-icon" aria-label="Silhouette">👤</button>
                 <button id="setStart2" class="icon-btn trim-btn" aria-label="Start Trim">[</button>
                 <button id="setEnd2" class="icon-btn trim-btn" aria-label="End Trim">]</button>
                 <span id="timeValue2" class="time-display">0.00s</span>
@@ -382,7 +396,9 @@
         <div class="global-controls">
             <button id="syncAllStartsButton" class="global-btn flat-icon">⏮</button>
             <button id="globalPlayPauseBtn" class="global-btn flat-icon">▶ / ⏸</button>
-            <button id="recordBtn" class="global-btn record-btn flat-icon">💾</button>
+            <button id="recordBtn" class="global-btn record-btn flat-icon">
+                💾<span class="beta-tag">beta</span>
+            </button>
         </div>
         
         <p id="status"></p>
