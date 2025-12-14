@@ -4,6 +4,7 @@ const video2 = document.getElementById('video2');
 const videoCanvas = document.getElementById('videoCanvas');
 const ctx = videoCanvas.getContext('2d');
 const aiLoader = document.getElementById('aiLoader');
+const recordingStatus = document.getElementById('recordingStatus');
 
 // Controls
 const opacitySlider = document.getElementById('opacitySlider');
@@ -33,6 +34,10 @@ const undoBtn = document.getElementById('undoBtn');
 const annotationToolbar = document.getElementById('annotationToolbar');
 const toolStatus = document.getElementById('status');
 
+// Global
+const globalPlayPauseBtn = document.getElementById('globalPlayPauseBtn');
+const recordBtn = document.getElementById('recordBtn');
+
 // --- State ---
 let video1Ready = false;
 let video2Ready = false;
@@ -47,6 +52,13 @@ let transform2 = { scale: 1.0, offsetX: 0, offsetY: 0 };
 let trim1 = { start: 0, end: null };
 let trim2 = { start: 0, end: null };
 
+// Recording
+let mediaRecorder;
+let recordedChunks = [];
+let isRecording = false;
+let recordingStartTime = 0;
+let expectedRecordingDuration = 0;
+
 // Interaction Modes
 const MODE_NONE = 'none';
 const MODE_MOVE_V1 = 'move_v1';
@@ -56,13 +68,14 @@ const MODE_TEXT = 'text';
 let currentMode = MODE_NONE;
 
 // Annotations
-let annotations = []; // { type: 'line'|'text', color, points: [] or content/x/y/size }
+let annotations = []; 
 let currentStroke = null;
 let selectedColor = '#ff3b30';
 
 // Text Interaction State
 let activeTextIndex = -1; 
-let initialTextScale = 1;
+let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance: 0, fontSize: 20 };
+let isDragging = false;
 
 // AI State
 let analyze1 = false, analyze2 = false;
@@ -70,39 +83,30 @@ let pose1 = null, pose2 = null;
 let results1 = null, results2 = null;
 let loading1 = false, loading2 = false;
 
-// Touch Cache
-let initialTouchData = { x: 0, y: 0, scale: 1, offsetX: 0, offsetY: 0, distance: 0, fontSize: 20 };
-let isDragging = false;
-
 // --- Event Listeners ---
 
-// ZOOM RESTRICTION: Prevent pinch-zoom unless on videoCanvas
 document.addEventListener('touchmove', function(e) {
     if (e.touches.length > 1) {
-        if (e.target.id !== 'videoCanvas') {
-            e.preventDefault();
-        }
+        if (e.target.id !== 'videoCanvas') e.preventDefault();
     }
 }, { passive: false });
 
-// File Uploads
 document.getElementById('fileInput1').addEventListener('change', (e) => loadVideo(e, video1, 1));
 document.getElementById('fileInput2').addEventListener('change', (e) => loadVideo(e, video2, 2));
 
-// Video Events
 video1.addEventListener('loadedmetadata', () => setupVideo(video1, 1));
 video2.addEventListener('loadedmetadata', () => setupVideo(video2, 2));
 video1.addEventListener('timeupdate', () => handleTimeUpdate(video1, 1));
 video2.addEventListener('timeupdate', () => handleTimeUpdate(video2, 2));
-video1.addEventListener('ended', () => { isPlaying1 = false; playPauseButton1.textContent = '▶'; });
-video2.addEventListener('ended', () => { isPlaying2 = false; playPauseButton2.textContent = '▶'; });
+video1.addEventListener('ended', () => { isPlaying1 = false; playPauseButton1.textContent = '▶'; checkGlobalPlayState(); });
+video2.addEventListener('ended', () => { isPlaying2 = false; playPauseButton2.textContent = '▶'; checkGlobalPlayState(); });
 
-// Controls
-playPauseButton1.addEventListener('click', () => togglePlayPause(video1, playPauseButton1));
-playPauseButton2.addEventListener('click', () => togglePlayPause(video2, playPauseButton2));
-document.getElementById('playAllButton').addEventListener('click', playAllVideos);
-document.getElementById('pauseAllButton').addEventListener('click', pauseAllVideos);
+playPauseButton1.addEventListener('click', () => { togglePlayPause(video1, playPauseButton1); checkGlobalPlayState(); });
+playPauseButton2.addEventListener('click', () => { togglePlayPause(video2, playPauseButton2); checkGlobalPlayState(); });
+
+globalPlayPauseBtn.addEventListener('click', toggleGlobalPlayPause);
 document.getElementById('syncAllStartsButton').addEventListener('click', syncAllStarts);
+recordBtn.addEventListener('click', startRecording);
 
 document.getElementById('restartButton1').addEventListener('click', () => { if(video1Ready) video1.currentTime = trim1.start; });
 document.getElementById('restartButton2').addEventListener('click', () => { if(video2Ready) video2.currentTime = trim2.start; });
@@ -111,28 +115,20 @@ opacitySlider.addEventListener('input', drawFrame);
 timeSlider1.addEventListener('input', () => { if(video1Ready) { video1.currentTime = parseFloat(timeSlider1.value); drawFrame(); } });
 timeSlider2.addEventListener('input', () => { if(video2Ready) { video2.currentTime = parseFloat(timeSlider2.value); drawFrame(); } });
 
-// Modes
 moveV1Btn.addEventListener('click', () => setMode(MODE_MOVE_V1));
 moveV2Btn.addEventListener('click', () => setMode(MODE_MOVE_V2));
 drawBtn.addEventListener('click', () => setMode(MODE_DRAW));
 textBtn.addEventListener('click', () => setMode(MODE_TEXT));
+undoBtn.addEventListener('click', () => { annotations.pop(); drawFrame(); });
 
-undoBtn.addEventListener('click', () => {
-    annotations.pop();
-    drawFrame();
-});
-
-// Trims
 setStart1.addEventListener('click', () => setTrimStart(1));
 setEnd1.addEventListener('click', () => setTrimEnd(1));
 setStart2.addEventListener('click', () => setTrimStart(2));
 setEnd2.addEventListener('click', () => setTrimEnd(2));
 
-// AI
 boneBtn1.addEventListener('click', () => toggleAI(1));
 boneBtn2.addEventListener('click', () => toggleAI(2));
 
-// Colors
 document.querySelectorAll('.color-dot').forEach(dot => {
     dot.addEventListener('click', (e) => {
         document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
@@ -141,7 +137,6 @@ document.querySelectorAll('.color-dot').forEach(dot => {
     });
 });
 
-// Canvas Interaction
 videoCanvas.addEventListener('mousedown', handlePointerStart);
 videoCanvas.addEventListener('mousemove', handlePointerMove);
 videoCanvas.addEventListener('mouseup', handlePointerEnd);
@@ -151,8 +146,7 @@ videoCanvas.addEventListener('touchend', handlePointerEnd);
 
 window.addEventListener('resize', adjustCanvasSize);
 
-// --- Functions ---
-
+// --- Mode Logic ---
 function setMode(mode) {
     if (currentMode === mode) currentMode = MODE_NONE;
     else currentMode = mode;
@@ -177,6 +171,7 @@ function setMode(mode) {
     }
 }
 
+// --- Video Loading ---
 function loadVideo(event, videoElement, videoNum) {
     const file = event.target.files[0];
     if (file) {
@@ -191,7 +186,6 @@ function loadVideo(event, videoElement, videoNum) {
         } else { 
             video2Ready = false; trim2 = { start: 0, end: null }; analyze2 = false;
         }
-        
         toolStatus.textContent = `Loading Video ${videoNum}...`;
     }
 }
@@ -225,19 +219,18 @@ function adjustCanvasSize() {
     drawFrame();
 }
 
+// --- Interaction Logic ---
 function getPointerPos(e) {
     const rect = videoCanvas.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return { x: clientX - rect.left, y: clientY - rect.top, clientX, clientY };
 }
-
 function getDistance(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.sqrt(dx * dx + dy * dy);
 }
-
 function hitTestText(x, y) {
     for (let i = annotations.length - 1; i >= 0; i--) {
         const item = annotations[i];
@@ -255,18 +248,15 @@ function hitTestText(x, y) {
 
 function handlePointerStart(e) {
     if (currentMode === MODE_NONE) return; 
-    
     e.preventDefault();
     const pos = getPointerPos(e);
     const touches = e.touches;
 
     if (currentMode === MODE_TEXT) {
         activeTextIndex = hitTestText(pos.x, pos.y);
-        
         if (activeTextIndex !== -1) {
             isDragging = true;
             const item = annotations[activeTextIndex];
-            
             if (touches && touches.length === 2) {
                 initialTouchData.distance = getDistance(touches);
                 initialTouchData.fontSize = item.size;
@@ -278,17 +268,9 @@ function handlePointerStart(e) {
             }
             return;
         }
-
         const text = prompt("Enter text:");
         if (text) {
-            annotations.push({ 
-                type: 'text', 
-                content: text, 
-                x: pos.x, 
-                y: pos.y, 
-                color: selectedColor, 
-                size: 30 
-            });
+            annotations.push({ type: 'text', content: text, x: pos.x, y: pos.y, color: selectedColor, size: 30 });
             drawFrame();
         }
         return;
@@ -304,9 +286,7 @@ function handlePointerStart(e) {
     if (currentMode === MODE_MOVE_V1 || currentMode === MODE_MOVE_V2) {
         if (!video1Ready && currentMode === MODE_MOVE_V1) return;
         if (!video2Ready && currentMode === MODE_MOVE_V2) return;
-
         const t = currentMode === MODE_MOVE_V1 ? transform1 : transform2;
-        
         if (touches && touches.length === 2) {
             isDragging = false;
             initialTouchData.distance = getDistance(touches);
@@ -324,13 +304,11 @@ function handlePointerStart(e) {
 function handlePointerMove(e) {
     if (currentMode === MODE_NONE) return;
     e.preventDefault();
-
     const pos = getPointerPos(e);
     const touches = e.touches;
 
     if (currentMode === MODE_TEXT && activeTextIndex !== -1) {
         const item = annotations[activeTextIndex];
-
         if (touches && touches.length === 2 && initialTouchData.distance > 0) {
             const dist = getDistance(touches);
             const scaleFactor = dist / initialTouchData.distance;
@@ -375,9 +353,87 @@ function handlePointerEnd(e) {
     initialTouchData.distance = 0;
 }
 
+// --- AUTOMATED RECORDING LOGIC ---
+function startRecording() {
+    if (!video1Ready && !video2Ready) {
+        alert("Load a video first.");
+        return;
+    }
+    if (isRecording) return;
+
+    // 1. Calculate Max Duration based on Trims
+    let dur1 = video1Ready ? (trim1.end - trim1.start) : 0;
+    let dur2 = video2Ready ? (trim2.end - trim2.start) : 0;
+    expectedRecordingDuration = Math.max(dur1, dur2) * 1000; // ms
+
+    if (expectedRecordingDuration <= 0) {
+        alert("Invalid video duration.");
+        return;
+    }
+
+    // 2. Sync to Start
+    syncAllStarts();
+    isRecording = true;
+    recordBtn.classList.add('recording');
+    recordingStatus.style.display = 'block';
+
+    // 3. Setup MediaRecorder
+    const stream = videoCanvas.captureStream(30);
+    recordedChunks = [];
+    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    
+    mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) recordedChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'formcheck_video.webm';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        
+        // Reset UI
+        isRecording = false;
+        recordBtn.classList.remove('recording');
+        recordingStatus.style.display = 'none';
+        pauseAllVideos();
+    };
+
+    mediaRecorder.start();
+    recordingStartTime = Date.now();
+
+    // 4. Play Videos
+    playAllVideos();
+}
+
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        pauseAllVideos();
+    }
+}
+
+function checkRecordingStopCondition() {
+    if (!isRecording) return;
+    
+    // Check elapsed time vs expected duration
+    const elapsed = Date.now() - recordingStartTime;
+    // Add small buffer (200ms) to ensure end frame is captured
+    if (elapsed >= expectedRecordingDuration + 200) {
+        stopRecording();
+    }
+}
+
+// --- Draw Loop ---
 function drawLoop() {
     processAI();
     drawFrame();
+    if (isRecording) checkRecordingStopCondition();
     requestAnimationFrame(drawLoop);
 }
 
@@ -386,30 +442,47 @@ function drawFrame() {
     const centerX = videoCanvas.width / 2;
     const centerY = videoCanvas.height / 2;
 
-    // Relaxed check: Allow drawing if readyState is 0 but we have metadata, or essentially just try to draw.
-    // This fixes flashing during seek.
-    const drawLayer = (vid, t, alpha) => {
-        if (!vid || vid.readyState === 0) return; // Only return if truly empty
+    const drawLayer = (vid, t, alpha, fitContain) => {
+        if (!vid || vid.readyState === 0) return;
         ctx.save();
         ctx.globalAlpha = alpha;
+        
+        let dw = videoCanvas.width;
+        let dh = videoCanvas.height;
+        let dx = 0, dy = 0;
+
+        if (fitContain && vid.videoWidth) {
+            const scaleFactor = Math.min(videoCanvas.width / vid.videoWidth, videoCanvas.height / vid.videoHeight);
+            dw = vid.videoWidth * scaleFactor;
+            dh = vid.videoHeight * scaleFactor;
+            dx = (videoCanvas.width - dw) / 2;
+            dy = (videoCanvas.height - dh) / 2;
+        }
+
         ctx.translate(centerX + t.offsetX, centerY + t.offsetY);
         ctx.scale(t.scale, t.scale);
         ctx.translate(-centerX, -centerY);
-        ctx.drawImage(vid, 0, 0, videoCanvas.width, videoCanvas.height);
+        
+        ctx.drawImage(vid, dx, dy, dw, dh);
         ctx.restore();
+        
+        return { dw, dh, dx, dy };
     };
 
+    let v1Info = {dw: videoCanvas.width, dh: videoCanvas.height, dx: 0, dy: 0};
+    let v2Info = {dw: videoCanvas.width, dh: videoCanvas.height, dx: 0, dy: 0};
+
     if (video1Ready) {
-        drawLayer(video1, transform1, 1.0);
+        v1Info = drawLayer(video1, transform1, 1.0, false) || v1Info;
         if (analyze1 && results1 && results1.poseLandmarks) {
-            drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1);
+            drawSkeletonChain(ctx, results1.poseLandmarks, 'white', transform1, v1Info);
         }
     }
 
     if (video2Ready) {
-        drawLayer(video2, transform2, parseFloat(opacitySlider.value));
+        v2Info = drawLayer(video2, transform2, parseFloat(opacitySlider.value), true) || v2Info;
         if (analyze2 && results2 && results2.poseLandmarks) {
-            drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2);
+            drawSkeletonChain(ctx, results2.poseLandmarks, '#FFFF00', transform2, v2Info);
         }
     }
 
@@ -418,7 +491,6 @@ function drawFrame() {
         ctx.fillStyle = item.color;
         ctx.strokeStyle = item.color;
         ctx.lineWidth = 3;
-
         if (item.type === 'text') {
             ctx.font = `bold ${item.size}px Arial`;
             ctx.fillText(item.content, item.x, item.y);
@@ -433,7 +505,7 @@ function drawFrame() {
     });
 }
 
-function drawSkeletonChain(ctx, landmarks, color, t) {
+function drawSkeletonChain(ctx, landmarks, color, t, dims) {
     const chains = [[15,13,11,23,25,27], [16,14,12,24,26,28]];
     const cx = videoCanvas.width/2;
     const cy = videoCanvas.height/2;
@@ -448,8 +520,8 @@ function drawSkeletonChain(ctx, landmarks, color, t) {
         indices.forEach(i => {
             const lm = landmarks[i];
             if(lm && lm.visibility > 0.5) {
-                let x = lm.x * videoCanvas.width;
-                let y = lm.y * videoCanvas.height;
+                let x = (lm.x * dims.dw) + dims.dx;
+                let y = (lm.y * dims.dh) + dims.dy;
                 x = ((x - cx) * t.scale) + cx + t.offsetX;
                 y = ((y - cy) * t.scale) + cy + t.offsetY;
                 if(first) { ctx.moveTo(x,y); first=false; }
@@ -460,6 +532,7 @@ function drawSkeletonChain(ctx, landmarks, color, t) {
     });
 }
 
+// --- Utils ---
 function handleTimeUpdate(vid, num) {
     const slider = num===1 ? timeSlider1 : timeSlider2;
     const val = num===1 ? timeValue1 : timeValue2;
@@ -467,8 +540,10 @@ function handleTimeUpdate(vid, num) {
     const isPlaying = num===1 ? isPlaying1 : isPlaying2;
 
     if (vid.currentTime >= trim.end) {
-        vid.currentTime = trim.start;
-        if (!isPlaying) vid.pause(); 
+        if (!isRecording) { 
+            vid.currentTime = trim.start;
+            if (!isPlaying) vid.pause(); 
+        }
     }
     slider.value = vid.currentTime;
     val.textContent = vid.currentTime.toFixed(2)+'s';
@@ -504,13 +579,31 @@ function togglePlayPause(v, btn) {
     else { v.pause(); if(v===video1) isPlaying1=false; else isPlaying2=false; btn.textContent='▶'; }
 }
 
+function toggleGlobalPlayPause() {
+    if ((video1Ready && !video1.paused) || (video2Ready && !video2.paused)) {
+        pauseAllVideos();
+    } else {
+        playAllVideos();
+    }
+}
+
+function checkGlobalPlayState() {
+    if ((video1Ready && !video1.paused) || (video2Ready && !video2.paused)) {
+        globalPlayPauseBtn.textContent = '⏸';
+    } else {
+        globalPlayPauseBtn.textContent = '▶ / ⏸';
+    }
+}
+
 function playAllVideos() {
     if(video1Ready) togglePlayPause(video1, playPauseButton1);
     if(video2Ready) togglePlayPause(video2, playPauseButton2);
+    checkGlobalPlayState();
 }
 function pauseAllVideos() {
     if(video1Ready) { video1.pause(); isPlaying1=false; playPauseButton1.textContent='▶'; }
     if(video2Ready) { video2.pause(); isPlaying2=false; playPauseButton2.textContent='▶'; }
+    checkGlobalPlayState();
 }
 function syncAllStarts() {
     if(video1Ready) video1.currentTime = trim1.start;
