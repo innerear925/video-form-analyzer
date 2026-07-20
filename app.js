@@ -591,6 +591,30 @@ function drawSkeletonChain(ctx, landmarks, color, t, dims) {
             }
         });
         ctx.stroke();
+
+        // Draw circular nodes for Hand(15/16), Shoulder(11/12), Hip(23/24), and Foot(27/28)
+        const targetNodes = [11, 12, 15, 16, 23, 24, 27, 28];
+        
+        indices.forEach(i => {
+            if (targetNodes.includes(i)) {
+                const lm = landmarks[i];
+                if (lm && lm.visibility > 0.5) {
+                    let x = (lm.x * dims.dw) + dims.dx;
+                    let y = (lm.y * dims.dh) + dims.dy;
+                    x = ((x - cx) * t.scale) + cx + t.offsetX;
+                    y = ((y - cy) * t.scale) + cy + t.offsetY;
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 6, 0, 2 * Math.PI); // 6px radius circle
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    // Add a semi-transparent dark border to make dots pop against bright backgrounds
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.stroke();
+                }
+            }
+        });
     });
 }
 
