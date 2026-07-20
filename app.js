@@ -505,29 +505,90 @@ function drawFrame() {
     });
 }
 
+// --- Dynamic Skeleton Logic ---
+function getActiveChains(landmarks) {
+    const leftChain = [15, 13, 11, 23, 25, 27];
+    const rightChain = [16, 14, 12, 24, 26, 28];
+
+    const lShoulder = landmarks[11];
+    const rShoulder = landmarks[12];
+    const lHip = landmarks[23];
+    const rHip = landmarks[24];
+
+    // Fallback to drawing both if key anchors are missing
+    if (!lShoulder || !rShoulder || !lHip || !rHip) {
+        return [leftChain, rightChain]; 
+    }
+
+    // 1. Calculate apparent torso width (shoulder to shoulder)
+    const dxW = rShoulder.x - lShoulder.x;
+    const dyW = rShoulder.y - lShoulder.y;
+    const torsoWidth = Math.sqrt(dxW * dxW + dyW * dyW);
+
+    // 2. Calculate apparent torso height (mid-shoulder to mid-hip)
+    const midShoulderX = (lShoulder.x + rShoulder.x) / 2;
+    const midShoulderY = (lShoulder.y + rShoulder.y) / 2;
+    const midHipX = (lHip.x + rHip.x) / 2;
+    const midHipY = (lHip.y + rHip.y) / 2;
+
+    const dxH = midHipX - midShoulderX;
+    const dyH = midHipY - midShoulderY;
+    const torsoHeight = Math.sqrt(dxH * dxH + dyH * dyH);
+
+    // 3. Determine if Side View
+    // (Prevent division by zero, though highly unlikely with height)
+    const ratio = torsoWidth / (torsoHeight || 1); 
+
+    if (ratio <= 0.35) {
+        // Evaluate depth using MediaPipe's Z coordinate
+        // More negative Z means closer to the camera.
+        const leftDepth = (lShoulder.z + lHip.z) / 2;
+        const rightDepth = (rShoulder.z + rHip.z) / 2;
+
+        if (leftDepth < rightDepth) {
+            return [leftChain]; // Left side is foreground
+        } else {
+            return [rightChain]; // Right side is foreground
+        }
+    }
+
+    // Default: Front/Diagonal view, draw both sides
+    return [leftChain, rightChain];
+}
+
 function drawSkeletonChain(ctx, landmarks, color, t, dims) {
     if (!landmarks) return;
-    const chains = [[15,13,11,23,25,27], [16,14,12,24,26,28]];
-    const cx = videoCanvas.width/2;
-    const cy = videoCanvas.height/2;
+    
+    // Dynamically fetch visible chains based on perspective
+    const activeChains = getActiveChains(landmarks);
+    
+    const cx = videoCanvas.width / 2;
+    const cy = videoCanvas.height / 2;
     
     ctx.strokeStyle = color;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
 
-    chains.forEach(indices => {
+    activeChains.forEach(indices => {
         ctx.beginPath();
         let first = true;
         indices.forEach(i => {
             const lm = landmarks[i];
-            if(lm && lm.visibility > 0.5) {
+            // Render point if visibility confidence is high enough
+            if (lm && lm.visibility > 0.5) {
                 let x = (lm.x * dims.dw) + dims.dx;
                 let y = (lm.y * dims.dh) + dims.dy;
                 x = ((x - cx) * t.scale) + cx + t.offsetX;
                 y = ((y - cy) * t.scale) + cy + t.offsetY;
-                if(first) { ctx.moveTo(x,y); first=false; }
-                else ctx.lineTo(x,y);
-            } else first = true;
+                if (first) { 
+                    ctx.moveTo(x, y); 
+                    first = false; 
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            } else {
+                first = true; // Break the line if a joint goes out of frame
+            }
         });
         ctx.stroke();
     });
